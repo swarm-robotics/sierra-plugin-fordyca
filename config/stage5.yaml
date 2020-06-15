@@ -1,0 +1,67 @@
+# Intra-scenario
+intra_scenario:
+  graphs:
+    # raw performance
+    # - src_stem: pm-blocks-transported-cum
+    #   dest_stem: cc-pm-blocks-transported-cum
+    #   title: 'Swarm Performance'
+    #   label: 'Total Blocks Collected'
+
+    # scalability
+    - src_stem: pm-scalability-norm
+      dest_stem: cc-pm-scalability-norm
+      title: 'Swarm Scalability (Normalized)'
+      label: 'Scalability Value'
+
+    - src_stem: pm-karpflatt
+      dest_stem: cc-pm-karpflatt
+      title: 'Swarm Scalability (Karp-Flatt)'
+      label: 'Karp-Flatt Value'
+
+      # self-organization
+    - src_stem: pm-self-org-ifl
+      dest_stem: cc-pm-self-org-ifl
+      title: 'Swarm Spatial Self Organization'
+      label: 'Self-Organization Value'
+
+    - src_stem: pm-self-org-mpg
+      dest_stem: cc-pm-self-org-mpg
+      title: 'Swarm Task-Based Self-Organization'
+      label: 'Self-Organization Value'
+
+    - src_stem: pm-self-org
+      dest_stem: cc-pm-self-org
+      title: 'Swarm Weighted Self-Organization'
+      label: 'Self-Organization Value'
+
+      # flexibility
+    - src_stem: pm-reactivity
+      dest_stem: cc-pm-reactivity
+      title: 'Swarm Reactivity'
+      label: 'Reactivity Value'
+
+    - src_stem: pm-adaptability
+      dest_stem: cc-pm-adaptability
+      title: 'Swarm Adaptability'
+      label: 'Adaptability Value'
+
+    - src_stem: pm-flexibility
+      dest_stem: cc-pm-flexibility
+      title: 'Swarm Weighted Flexibility'
+      label: 'Flexibility Value'
+
+    - src_stem: pm-robustness-pd
+      dest_stem: cc-pm-robustness-pd
+      title: 'Swarm Robustness (Population Dynamics)'
+      label: 'Robustness Value'
+
+    # robustness
+    - src_stem: pm-robustness-saa
+      dest_stem: cc-pm-robustness-saa
+      title: 'Swarm Robustness (SAA Noise)'
+      label: 'Robustness Value'
+
+    - src_stem: pm-robustness
+      dest_stem: cc-pm-robustness
+      title: 'Swarm Weighted Robustness'
+      label: 'Robustness Value'
