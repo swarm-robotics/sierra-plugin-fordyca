@@ -1,12 +1,6 @@
 # Intra-scenario
 intra_scenario:
   graphs:
-    # raw performance
-    # - src_stem: pm-blocks-transported-cum
-    #   dest_stem: cc-pm-blocks-transported-cum
-    #   title: 'Swarm Performance'
-    #   label: 'Total Blocks Collected'
-
     # scalability
     - src_stem: pm-scalability-norm
       dest_stem: cc-pm-scalability-norm
@@ -15,8 +9,8 @@ intra_scenario:
 
     - src_stem: pm-karpflatt
       dest_stem: cc-pm-karpflatt
-      title: 'Swarm Scalability (Karp-Flatt)'
-      label: 'Karp-Flatt Value'
+      title: 'Swarm Scalability (Parallel Fraction)'
+      label: 'Scalability Value'
 
       # self-organization
     - src_stem: pm-self-org-ifl
@@ -29,10 +23,10 @@ intra_scenario:
       title: 'Swarm Task-Based Self-Organization'
       label: 'Self-Organization Value'
 
-    - src_stem: pm-self-org
-      dest_stem: cc-pm-self-org
-      title: 'Swarm Weighted Self-Organization'
-      label: 'Self-Organization Value'
+    # - src_stem: pm-self-org
+    #   dest_stem: cc-pm-self-org
+    #   title: 'Swarm Weighted Self-Organization'
+    #   label: 'Self-Organization Value'
 
       # flexibility
     - src_stem: pm-reactivity
@@ -45,10 +39,10 @@ intra_scenario:
       title: 'Swarm Adaptability'
       label: 'Adaptability Value'
 
-    - src_stem: pm-flexibility
-      dest_stem: cc-pm-flexibility
-      title: 'Swarm Weighted Flexibility'
-      label: 'Flexibility Value'
+    # - src_stem: pm-flexibility
+    #   dest_stem: cc-pm-flexibility
+    #   title: 'Swarm Weighted Flexibility'
+    #   label: 'Flexibility Value'
 
     - src_stem: pm-robustness-pd
       dest_stem: cc-pm-robustness-pd
@@ -61,7 +55,7 @@ intra_scenario:
       title: 'Swarm Robustness (SAA Noise)'
       label: 'Robustness Value'
 
-    - src_stem: pm-robustness
-      dest_stem: cc-pm-robustness
-      title: 'Swarm Weighted Robustness'
-      label: 'Robustness Value'
+    # - src_stem: pm-robustness
+    #   dest_stem: cc-pm-robustness
+    #   title: 'Swarm Weighted Robustness'
+    #   label: 'Robustness Value'

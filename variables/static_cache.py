@@ -17,10 +17,13 @@
 
 import typing as tp
 
+import implements
+
 from core.variables.base_variable import IBaseVariable
 from core.utils import ArenaExtent as ArenaExtent
 
 
+@implements.implements(IBaseVariable)
 class StaticCache(IBaseVariable):
 
     """
@@ -36,7 +39,7 @@ class StaticCache(IBaseVariable):
         self.sizes = sizes
         self.extents = extents
 
-    def gen_attr_changelist(self):
+    def gen_attr_changelist(self) -> list:
         """
         Generate list of sets of changes necessary to make to the input file to correctly set up the
         simulation for the list of static cache sizes specified in constructor.
@@ -55,8 +58,8 @@ class StaticCache(IBaseVariable):
         ])
             for e in self.extents for s in self.sizes]
 
-    def gen_tag_rmlist(self):
+    def gen_tag_rmlist(self) -> list:
         return []
 
-    def gen_tag_addlist(self):
+    def gen_tag_addlist(self) -> list:
         return []

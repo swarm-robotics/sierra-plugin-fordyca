@@ -16,11 +16,13 @@
 
 import typing as tp
 
-from core.variables.base_variable import IBaseVariable
+import implements
 
+from core.variables.base_variable import IBaseVariable
 from core.utils import ArenaExtent as ArenaExtent
 
 
+@implements.implements(IBaseVariable)
 class NestPose(IBaseVariable):
 
     """
@@ -37,7 +39,7 @@ class NestPose(IBaseVariable):
         self.dist_type = dist_type
         self.extents = extents
 
-    def gen_attr_changelist(self):
+    def gen_attr_changelist(self) -> list:
         """
         Generate list of sets of changes necessary to make to the input file to correctly set up the
         simulation for the specified block distribution/nest.
@@ -81,8 +83,8 @@ class NestPose(IBaseVariable):
             # Eventually, I might want to have definitions for the other block distribution types
             raise NotImplementedError
 
-    def gen_tag_rmlist(self):
+    def gen_tag_rmlist(self) -> list:
         return []
 
-    def gen_tag_addlist(self):
+    def gen_tag_addlist(self) -> list:
         return []
