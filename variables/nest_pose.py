@@ -38,6 +38,7 @@ class NestPose(IBaseVariable):
     def __init__(self, dist_type: str, extents: tp.List[ArenaExtent]):
         self.dist_type = dist_type
         self.extents = extents
+        self.attr_changes = None
 
     def gen_attr_changelist(self) -> list:
         """
@@ -45,43 +46,47 @@ class NestPose(IBaseVariable):
         simulation for the specified block distribution/nest.
 
         """
-        if self.dist_type == "single_source":
-            return [set([
-                (".//arena_map/nests/nest",
-                 "dims",
-                 "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax * 0.8)),
-                (".//arena_map/nests/nest",
-                 "center",
-                 "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax / 2.0)),
-                (".//block_sel_matrix",
-                 "nest",
-                 "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax / 2.0)),
-            ]) for s in self.extents]
-        elif self.dist_type == "dual_source":
-            return [set([
-                (".//arena_map/nests/nest",
-                 "dims",
-                 "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax * 0.8)),
-                (".//arena_map/nests/nest",
-                 "center",
-                 "{0:.9f}, {1:.9f}".format(s.xmax * 0.5, s.ymax * 0.5)),
-                (".//block_sel_matrix",
-                 "nest",
-                 "{0:.9f}, {1:.9f}".format(s.xmax * 0.5, s.ymax * 0.5)),
-            ]) for s in self.extents]
-        elif (self.dist_type == "powerlaw" or self.dist_type == "random" or
-              self.dist_type == "quad_source"):
-            return [set([
-                (".//arena_map/nests/nest",
-                 "dims",
-                 "{0:.9f}, {1:.9f}".format(s.xmax * 0.20, s.xmax * 0.20)),
-                (".//arena_map/nests/nest", "center", "{0:.9f}, {0:.9f}".format(s.xmax * 0.5)),
-                (".//block_sel_matrix", "nest", "{0:.9f}, {0:.9f}".format(s.xmax * 0.5)),
-            ])
-                for s in self.extents]
-        else:
-            # Eventually, I might want to have definitions for the other block distribution types
-            raise NotImplementedError
+        if self.attr_changes is None:
+            if self.dist_type == "single_source":
+                return [set([
+                    (".//arena_map/nests/nest",
+                     "dims",
+                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax * 0.8)),
+                    (".//arena_map/nests/nest",
+                     "center",
+                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax / 2.0)),
+                    (".//block_sel_matrix",
+                     "nest",
+                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax / 2.0)),
+                ]) for s in self.extents]
+            elif self.dist_type == "dual_source":
+                return [set([
+                    (".//arena_map/nests/nest",
+                     "dims",
+                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax * 0.8)),
+                    (".//arena_map/nests/nest",
+                     "center",
+                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.5, s.ymax * 0.5)),
+                    (".//block_sel_matrix",
+                     "nest",
+                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.5, s.ymax * 0.5)),
+                ]) for s in self.extents]
+            elif (self.dist_type == "powerlaw" or self.dist_type == "random" or
+                  self.dist_type == "quad_source"):
+                return [set([
+                    (".//arena_map/nests/nest",
+                     "dims",
+                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.20, s.xmax * 0.20)),
+                    (".//arena_map/nests/nest", "center", "{0:.9f}, {0:.9f}".format(s.xmax * 0.5)),
+                    (".//block_sel_matrix", "nest", "{0:.9f}, {0:.9f}".format(s.xmax * 0.5)),
+                ])
+                    for s in self.extents]
+            else:
+                # Eventually, I might want to have definitions for the other block distribution
+                # types
+                raise NotImplementedError
+
+        return self.attr_changes
 
     def gen_tag_rmlist(self) -> list:
         return []

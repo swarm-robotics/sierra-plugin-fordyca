@@ -38,6 +38,7 @@ class StaticCache(IBaseVariable):
     def __init__(self, sizes: tp.List[int], extents: tp.List[ArenaExtent]):
         self.sizes = sizes
         self.extents = extents
+        self.attr_changes = None
 
     def gen_attr_changelist(self) -> list:
         """
@@ -49,14 +50,16 @@ class StaticCache(IBaseVariable):
         - Sets static cache size (initial # blocks upon creation) and its dimensions in the arena
           during its existence.
         """
-        return [set([
-            (".//loop_functions/caches/dynamic", "enable", "false"),
-            (".//loop_functions/caches/static", "enable", "true"),
-            (".//loop_functions/caches/static", "size", "{0:.9f}".format(s)),
-            (".//loop_functions/caches", "dimension", "{0:.9f}".format(max(e.xmax * 0.20,
-                                                                           e.ymax * 0.20)))
-        ])
-            for e in self.extents for s in self.sizes]
+        if self.attr_changes is None:
+            self.attr_changes = [set([
+                (".//loop_functions/caches/dynamic", "enable", "false"),
+                (".//loop_functions/caches/static", "enable", "true"),
+                (".//loop_functions/caches/static", "size", "{0:.9f}".format(s)),
+                (".//loop_functions/caches", "dimension", "{0:.9f}".format(max(e.xmax * 0.20,
+                                                                               e.ymax * 0.20)))
+            ])
+                for e in self.extents for s in self.sizes]
+        return self.attr_changes
 
     def gen_tag_rmlist(self) -> list:
         return []

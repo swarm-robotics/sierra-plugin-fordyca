@@ -1,14 +1,20 @@
 # Intra-scenario
 intra_scenario:
   graphs:
+    # raw performance
+    - src_stem: pm-blocks-transported-cum-avg
+      dest_stem: cc-pm-blocks-transported-cum-avg
+      title: 'Swarm Performance'
+      label: 'Total Blocks Collected'
+
     # scalability
     - src_stem: pm-scalability-norm
       dest_stem: cc-pm-scalability-norm
       title: 'Swarm Scalability (Normalized)'
       label: 'Scalability Value'
 
-    - src_stem: pm-karpflatt
-      dest_stem: cc-pm-karpflatt
+    - src_stem: pm-scalability-parallel-frac
+      dest_stem: cc-pm-scalability-parallel-frac
       title: 'Swarm Scalability (Parallel Fraction)'
       label: 'Scalability Value'
 
@@ -23,10 +29,10 @@ intra_scenario:
       title: 'Swarm Task-Based Self-Organization'
       label: 'Self-Organization Value'
 
-    # - src_stem: pm-self-org
-    #   dest_stem: cc-pm-self-org
-    #   title: 'Swarm Weighted Self-Organization'
-    #   label: 'Self-Organization Value'
+    - src_stem: pm-self-org
+      dest_stem: cc-pm-self-org
+      title: 'Swarm Weighted Self-Organization'
+      label: 'Self-Organization Value'
 
       # flexibility
     - src_stem: pm-reactivity
@@ -39,10 +45,10 @@ intra_scenario:
       title: 'Swarm Adaptability'
       label: 'Adaptability Value'
 
-    # - src_stem: pm-flexibility
-    #   dest_stem: cc-pm-flexibility
-    #   title: 'Swarm Weighted Flexibility'
-    #   label: 'Flexibility Value'
+    - src_stem: pm-flexibility
+      dest_stem: cc-pm-flexibility
+      title: 'Swarm Weighted Flexibility'
+      label: 'Flexibility Value'
 
     - src_stem: pm-robustness-pd
       dest_stem: cc-pm-robustness-pd
@@ -55,7 +61,7 @@ intra_scenario:
       title: 'Swarm Robustness (SAA Noise)'
       label: 'Robustness Value'
 
-    # - src_stem: pm-robustness
-    #   dest_stem: cc-pm-robustness
-    #   title: 'Swarm Weighted Robustness'
-    #   label: 'Robustness Value'
+    - src_stem: pm-robustness
+      dest_stem: cc-pm-robustness
+      title: 'Swarm Weighted Robustness'
+      label: 'Robustness Value'
