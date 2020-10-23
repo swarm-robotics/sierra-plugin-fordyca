@@ -21,7 +21,7 @@ Extensions to :class:`core.generators.BaseScenarioGenerator` common to all FORDY
 import typing as tp
 
 from core.utils import ArenaExtent as ArenaExtent
-from plugins.fordyca.variables import dynamic_cache, static_cache, nest_pose
+from projects.fordyca.variables import dynamic_cache, static_cache, nest_pose
 from core.xml_luigi import XMLLuigi
 
 

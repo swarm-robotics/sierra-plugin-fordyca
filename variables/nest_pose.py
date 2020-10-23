@@ -47,7 +47,7 @@ class NestPose(IBaseVariable):
 
         """
         if self.attr_changes is None:
-            if self.dist_type == "single_source":
+            if self.dist_type == 'SS':
                 return [set([
                     (".//arena_map/nests/nest",
                      "dims",
@@ -55,11 +55,15 @@ class NestPose(IBaseVariable):
                     (".//arena_map/nests/nest",
                      "center",
                      "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax / 2.0)),
-                    (".//block_sel_matrix",
-                     "nest",
-                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax / 2.0)),
+                    (".//params/nest",
+                     "dims",
+                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax * 0.8)),
+                    (".//params/nest",
+                     "center",
+                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax / 2.0))
+
                 ]) for s in self.extents]
-            elif self.dist_type == "dual_source":
+            elif self.dist_type == 'DS':
                 return [set([
                     (".//arena_map/nests/nest",
                      "dims",
@@ -67,18 +71,23 @@ class NestPose(IBaseVariable):
                     (".//arena_map/nests/nest",
                      "center",
                      "{0:.9f}, {1:.9f}".format(s.xmax * 0.5, s.ymax * 0.5)),
-                    (".//block_sel_matrix",
-                     "nest",
+                    (".//params/nest",
+                     "dims",
+                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax * 0.8)),
+                    (".//params/nest",
+                     "center",
                      "{0:.9f}, {1:.9f}".format(s.xmax * 0.5, s.ymax * 0.5)),
                 ]) for s in self.extents]
-            elif (self.dist_type == "powerlaw" or self.dist_type == "random" or
-                  self.dist_type == "quad_source"):
+            elif (self.dist_type == 'PL' or self.dist_type == 'RN' or self.dist_type == 'QS'):
                 return [set([
                     (".//arena_map/nests/nest",
                      "dims",
                      "{0:.9f}, {1:.9f}".format(s.xmax * 0.20, s.xmax * 0.20)),
                     (".//arena_map/nests/nest", "center", "{0:.9f}, {0:.9f}".format(s.xmax * 0.5)),
-                    (".//block_sel_matrix", "nest", "{0:.9f}, {0:.9f}".format(s.xmax * 0.5)),
+                    (".//params/nest",
+                     "dims",
+                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.20, s.xmax * 0.20)),
+                    (".//params/nest", "center", "{0:.9f}, {0:.9f}".format(s.xmax * 0.5)),
                 ])
                     for s in self.extents]
             else:

@@ -16,7 +16,7 @@
 
 
 import core.generators.scenario_generator as sg
-import plugins.fordyca.generators.common as gc
+import projects.fordyca.generators.common as gc
 from core.utils import ArenaExtent as ArenaExtent
 
 
@@ -38,20 +38,19 @@ class SSGenerator(sg.SSGenerator):
     def generate(self):
 
         exp_def = super().generate()
-        arena_dim = self.cmdopts['arena_dim']
 
         if "depth1" in self.controller:
-            gc.generate_static_cache(exp_def, arena_dim, self.cmdopts)
+            gc.generate_static_cache(exp_def, self.spec.arena_dim, self.cmdopts)
         if "depth2" in self.controller:
-            gc.generate_dynamic_cache(exp_def, arena_dim)
+            gc.generate_dynamic_cache(exp_def, self.spec.arena_dim)
 
         self.generate_physics(exp_def,
                               self.cmdopts,
                               self.cmdopts['physics_engine_type2D'],
                               self.cmdopts['physics_n_engines'],
-                              [arena_dim])
+                              [self.spec.arena_dim])
 
-        gc.generate_nest_pose(exp_def, arena_dim, "single_source")
+        gc.generate_nest_pose(exp_def, self.spec.arena_dim, 'SS')
 
         return exp_def
 
@@ -74,20 +73,19 @@ class DSGenerator(sg.DSGenerator):
     def generate(self):
 
         exp_def = super().generate()
-        arena_dim = self.cmdopts['arena_dim']
 
         if "depth1" in self.controller:
-            gc.generate_static_cache(exp_def, arena_dim, self.cmdopts)
+            gc.generate_static_cache(exp_def, self.spec.arena_dim, self.cmdopts)
         if "depth2" in self.controller:
-            gc.generate_dynamic_cache(exp_def, arena_dim)
+            gc.generate_dynamic_cache(exp_def, self.spec.arena_dim)
 
         self.generate_physics(exp_def,
                               self.cmdopts,
                               self.cmdopts['physics_engine_type2D'],
                               self.cmdopts['physics_n_engines'],
-                              [arena_dim])
+                              [self.spec.arena_dim])
 
-        gc.generate_nest_pose(exp_def, arena_dim, "dual_source")
+        gc.generate_nest_pose(exp_def, self.spec.arena_dim, 'DS')
 
         return exp_def
 
@@ -110,20 +108,19 @@ class QSGenerator(sg.QSGenerator):
     def generate(self):
 
         exp_def = super().generate()
-        arena_dim = self.cmdopts['arena_dim']
 
         if "depth1" in self.controller:
-            gc.generate_static_cache(exp_def, arena_dim, self.cmdopts)
+            gc.generate_static_cache(exp_def, self.spec.arena_dim, self.cmdopts)
         if "depth2" in self.controller:
-            gc.generate_dynamic_cache(exp_def, arena_dim)
+            gc.generate_dynamic_cache(exp_def, self.spec.arena_dim)
 
         self.generate_physics(exp_def,
                               self.cmdopts,
                               self.cmdopts['physics_engine_type2D'],
                               self.cmdopts['physics_n_engines'],
-                              [arena_dim])
+                              [self.spec.arena_dim])
 
-        gc.generate_nest_pose(exp_def, arena_dim, "quad_source")
+        gc.generate_nest_pose(exp_def, self.spec.arena_dim, 'QS')
 
         return exp_def
 
@@ -146,20 +143,19 @@ class RNGenerator(sg.RNGenerator):
     def generate(self):
 
         exp_def = super().generate()
-        arena_dim = self.cmdopts['arena_dim']
 
         if "depth1" in self.controller:
-            gc.generate_static_cache(exp_def, arena_dim, self.cmdopts)
+            gc.generate_static_cache(exp_def, self.spec.arena_dim, self.cmdopts)
         if "depth2" in self.controller:
-            gc.generate_dynamic_cache(exp_def, arena_dim)
+            gc.generate_dynamic_cache(exp_def, self.spec.arena_dim)
 
         self.generate_physics(exp_def,
                               self.cmdopts,
                               self.cmdopts['physics_engine_type2D'],
                               self.cmdopts['physics_n_engines'],
-                              [arena_dim])
+                              [self.spec.arena_dim])
 
-        gc.generate_nest_pose(exp_def, arena_dim, "random")
+        gc.generate_nest_pose(exp_def, self.spec.arena_dim, 'RN')
 
         return exp_def
 
@@ -182,19 +178,18 @@ class PLGenerator(sg.PLGenerator):
     def generate(self):
 
         exp_def = super().generate()
-        arena_dim = self.cmdopts['arena_dim']
 
         if "depth1" in self.controller:
-            gc.generate_static_cache(exp_def, arena_dim, self.cmdopts)
+            gc.generate_static_cache(exp_def, self.spec.arena_dim, self.cmdopts)
         if "depth2" in self.controller:
-            gc.generate_dynamic_cache(exp_def, arena_dim)
+            gc.generate_dynamic_cache(exp_def, self.spec.arena_dim)
 
         self.generate_physics(exp_def,
                               self.cmdopts,
                               self.cmdopts['physics_engine_type2D'],
                               self.cmdopts['physics_n_engines'],
-                              [arena_dim])
+                              [self.spec.arena_dim])
 
-        gc.generate_nest_pose(exp_def, arena_dim, "powerlaw")
+        gc.generate_nest_pose(exp_def, self.spec.arena_dim, 'PL')
 
         return exp_def

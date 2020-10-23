@@ -7,6 +7,7 @@ sierra:
   collate_graph_leaf: 'collated-graphs'
   avg_output_leaf: 'averaged-output'
   project_frames_leaf: 'project-frames'
+  models_leaf: 'models'
 
 perf:
   intra_perf_csv: 'block-transport.csv'
@@ -18,10 +19,10 @@ perf:
   # raw_perf_ylabel: '# Blocks'
 
   # Journal scenario 2
-  inverted: true
+  inverted: false
   intra_perf_col: 'cum_avg_initial_wait_time'
-  inter_perf_csv: 'blocks-transport-initial-wait-time-cum-avg.csv'
-  raw_perf_title: 'Target Average Wait Time (Cumulative)'
+  inter_perf_csv: 'block-transport-time-cum-avg.csv'
+  raw_perf_title: 'Target Average Transport Time (Cumulative)'
   raw_perf_ylabel: 'Timesteps'
 
   interference_count_csv: 'interference-in-cum-avg.csv'
@@ -89,13 +90,13 @@ perf:
   #       stddev_range: [0.0, 0.03]
 
   # Journal scenario2
-  emergence:
-    alpha_T: 0.75
-    alpha_S: 0.25
+  # emergence:
+  #   alpha_T: 0.75
+  #   alpha_S: 0.25
 
   flexibility:
-    alpha_R: 0.5
-    alpha_A: 0.5
+  #   alpha_R: 0.5
+  #   alpha_A: 0.5
 
     hz: # [10,000] second periods
       - 0.00002
@@ -112,8 +113,8 @@ perf:
       - 0.4
 
   robustness:
-    alpha_SAA: 0.6
-    alpha_PD: 0.4
+    # alpha_SAA: 0.6
+    # alpha_PD: 0.4
     gaussian_ticks_mean_range: [0.0, 0.0]
     gaussian_ticks_stddev_range: [0.0, 0.1]
     gaussian_ticks_src: stddev

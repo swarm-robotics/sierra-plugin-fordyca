@@ -1,0 +1,3 @@
+models:
+  - pyfile: 'homing_time'
+  # - pyfile: 'spatial_distribution'

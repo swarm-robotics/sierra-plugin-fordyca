@@ -87,27 +87,28 @@ LN_block_trans:
       ylabel: '# Robots'
 
     - src_stem: block-transport
-      dest_stem: blocks-transport-time-int-avg
+      dest_stem: block-transport-time-int-avg
       col: int_avg_transport_time
       title: 'Average Block Transport Time (interval)'
       xlabel: 'Interval'
       ylabel: '# Timesteps'
 
     - src_stem: block-transport
-      dest_stem: blocks-transport-time-cum-avg
+      dest_stem: block-transport-time-cum-avg
       col: cum_avg_transport_time
       title: 'Average Block Transport Time (Cumulative)'
       xlabel: 'Interval'
       ylabel: '# Timesteps'
 
     - src_stem: block-transport
-      dest_stem: blocks-transport-initial-wait-time-int-avg
+      dest_stem: block-transport-initial-wait-time-int-avg
       col: int_avg_initial_wait_time
       title: 'Average Block Initial Wait Time (interval)'
       xlabel: 'Interval'
       ylabel: '# Timesteps'
+
     - src_stem: block-transport
-      dest_stem: blocks-transport-initial-wait-time-cum-avg
+      dest_stem: block-transport-initial-wait-time-cum-avg
       col: cum_avg_initial_wait_time
       title: 'Average Block Initial Wait Time (cumulative)'
       xlabel: 'Interval'
@@ -232,7 +233,7 @@ LN_cache_lifecycle:
       xlabel: 'Interval'
       ylabel: 'Count'
 
-LN_depth1_task_exec:
+LN_d1_task_exec:
   graphs:
     - src_stem: task-execution-collector
       dest_stem: task-execution-collector-exec-time-int-avg
@@ -575,29 +576,29 @@ LN_generalist_tab:
 LN_depth1_task_dist:
   graphs:
     - src_stem: task-distribution
-      dest_stem: task-distribution-depth0-count-int
-      col: int_avg_depth0_count
+      dest_stem: task-distribution-d0-count-int
+      col: int_avg_d0_count
       title: 'Task Distribution Depth0 Count (Interval)'
       xlabel: 'Interval'
       ylabel: 'Count'
 
     - src_stem: task-distribution
-      dest_stem: task-distribution-depth0-count-cum-avg
-      col: cum_avg_depth0_count
+      dest_stem: task-distribution-d0-count-cum-avg
+      col: cum_avg_d0_count
       title: 'Average Task Distribution Depth0 Count (Cumulative)'
       xlabel: 'Interval'
       ylabel: 'Count'
 
     - src_stem: task-distribution
-      dest_stem: task-distribution-depth1-count-int
-      col: int_avg_depth1_count
+      dest_stem: task-distribution-d1-count-int
+      col: int_avg_d1_count
       title: 'Task Distribution Depth1 Count (Interval)'
       xlabel: 'Interval'
       ylabel: 'Count'
 
     - src_stem: task-distribution
-      dest_stem: task-distribution-depth1-count-cum-avg
-      col: cum_avg_depth1_count
+      dest_stem: task-distribution-d1-count-cum-avg
+      col: cum_avg_d1_count
       title: 'Average Task Distribution Depth1 Count (Cumulative)'
       xlabel: 'Interval'
       ylabel: 'Count'
@@ -659,7 +660,7 @@ LN_depth1_task_dist:
       ylabel: 'Count'
 
 # Depth2
-LN_depth2_task_exec:
+LN_d2_task_exec:
   graphs:
     - src_stem: task-execution-cache-starter
       dest_stem: task-execution-cache-starter-exec-time-int-avg
@@ -998,18 +999,18 @@ LN_depth2_task_exec:
       xlabel: 'Interval'
       ylabel: 'Count'
 
-LN_depth2_task_dist:
+LN_d2_task_dist:
   graphs:
     - src_stem: task-distribution
-      dest_stem: task-distribution-depth2-count-int
-      col: int_avg_depth2_count
+      dest_stem: task-distribution-d2-count-int
+      col: int_avg_d2_count
       title: 'Task Distribution Depth2 Count (Interval)'
       xlabel: 'Interval'
       ylabel: 'Count'
 
     - src_stem: task-distribution
-      dest_stem: task-distribution-depth2-count-cum-avg
-      col: cum_avg_depth2_count
+      dest_stem: task-distribution-d2-count-cum-avg
+      col: cum_avg_d2_count
       title: 'Average Task Distribution Depth2 Count (Cumulative)'
       xlabel: 'Interval'
       ylabel: 'Count'
