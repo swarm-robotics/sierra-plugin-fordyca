@@ -19,13 +19,11 @@ Intra- and inter-experiment models for the time it takes a single robot to retur
 picking up an object.
 """
 # Core packages
-import math
 import os
 import typing as tp
 import copy
 
 # 3rd party packages
-import scipy.integrate as si
 import implements
 import pandas as pd
 
@@ -34,9 +32,11 @@ import models.interface
 import core.utils
 import core.variables.time_setup as ts
 import core.variables.batch_criteria as bc
-import projects.fordyca.models.extents as extents
-import projects.fordyca.models.block_cluster as block_cluster
-from projects.fordyca.models.block_acq import BlockAcqDensity
+from core.vector import Vector2D
+from models.execution_record import ExecutionRecord
+import projects.fordyca.models.representation as rep
+from projects.fordyca.models.density import BlockAcqDensity
+from projects.fordyca.models.dist_measure import DistanceMeasure2D
 
 
 def available_models(category: str):
@@ -79,9 +79,14 @@ class IntraExpNestHomingTime1Robot(models.interface.IConcreteIntraExpModel1D):
             cmdopts: dict,
             criteria: bc.IConcreteBatchCriteria,
             exp_num: int) -> pd.DataFrame:
+        er = ExecutionRecord()
+
+        if er.intra_record_exists(self.__class__.__name__, exp_num):
+            return core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
+                                                       self.target_csv_stem() + '.model'))
 
         # Calculate nest extent
-        nest = extents.nest_extent_calc(cmdopts, criteria, exp_num)
+        nest = rep.Nest(cmdopts, criteria, exp_num)
 
         # We calculate per-sim, rather than using the averaged block cluster results, because for
         # power law distributions different simulations have different cluster locations, which
@@ -111,15 +116,16 @@ class IntraExpNestHomingTime1Robot(models.interface.IConcreteIntraExpModel1D):
         res_df['model'] /= len(result_opaths)
 
         # All done!
+        er.intra_record_add(self.__class__.__name__, exp_num)
         return res_df
 
     def _calc_for_result(self,
                          cmdopts: dict,
                          result_opath: str,
-                         nest: core.utils.ArenaExtent,
+                         nest: rep.Nest,
                          res_df: pd.DataFrame):
         # Get clusters in the arena
-        clusters = block_cluster.BlockClusterSet(self.main_config, cmdopts, result_opath)
+        clusters = rep.BlockClusterSet(self.main_config, cmdopts, nest, result_opath)
 
         # Integrate to find average distance from nest to all clusters, weighted by acquisition
         # density.
@@ -128,10 +134,10 @@ class IntraExpNestHomingTime1Robot(models.interface.IConcreteIntraExpModel1D):
             dist += self._calc_acq_edist(cluster, nest, cmdopts['scenario'])
 
         avg_dist = dist / len(clusters)
+
         spatial_df = core.utils.pd_csv_read(os.path.join(cmdopts['exp_avgd_root'],
                                                          'spatial-movement.csv'))
 
-        print(avg_dist)
         # Finally, calculate the average homing time for each interval in the simulation
         for idx in spatial_df.index:
             # Reported in cm/s, and we need m/s
@@ -141,54 +147,33 @@ class IntraExpNestHomingTime1Robot(models.interface.IConcreteIntraExpModel1D):
             # compute the average time, in SECONDS, that robots spend returning to the nest.
             avg_homing_sec = avg_dist / avg_vel
 
-            # Convert seconds to timesteps
+            # Convert seconds to timesteps for displaying on graphs
             avg_homing_ts = avg_homing_sec * ts.kTICKS_PER_SECOND
 
             # All done!
             res_df.loc[idx, 'model'] += avg_homing_ts
 
     def _calc_acq_edist(self,
-                        cluster: block_cluster.BlockCluster,
+                        cluster: rep.BlockCluster,
                         nest: core.utils.ArenaExtent,
-                        scenario: str):
-        density = BlockAcqDensity(nest=nest, cluster=cluster)
+                        scenario: str) -> Vector2D:
+        dist_measure = DistanceMeasure2D(scenario, nest=nest)
+        density = BlockAcqDensity(nest=nest, cluster=cluster, dist_measure=dist_measure)
 
-        # For random distributions, the nest in is in the center of the cluster extent, so we have
-        # to integrate around it, otherwise the average X/Y acq location will be the center of the
-        # nest.
-        if 'RN' in scenario:
-            # Compute expected value of X coordinate of average distance from nest to acquisition
-            # location.
-            evx1 = density.evx_for_region(cluster.extent.xmin, nest.xcenter,
-                                          cluster.extent.ymin, cluster.extent.ymax)
+        # Compute expected value of X coordinate of average distance from nest to acquisition
+        # location.
+        ll = cluster.extent.ll
+        ur = cluster.extent.ur
+        evx = density.evx_for_region(ll=ll, ur=ur)
 
-            # Compute expected value of Y coordinate of average distance from nest to acquisition
-            # location.
-            evy1 = density.evy_for_region(cluster.extent.xmin, nest.xcenter,
-                                          cluster.extent.ymin, cluster.extent.ymax)
+        # Compute expected value of Y coordinate of average distance from nest to acquisition
+        # location.
+        evy = density.evy_for_region(ll=ll, ur=ur)
 
-            evx2 = density.evx_for_region(nest.xmin, nest.xmax,
-                                          nest.ycenter, cluster.extent.ymax)
+        # Compute expected distance from nest to block acquisitions
+        dist = dist_measure.to_nest(Vector2D(evx, evy))
 
-            evy2 = density.evy_for_region(nest.xmin, nest.xmax,
-                                          nest.ycenter, cluster.extent.ymax)
-            dist1 = math.sqrt((evx1 - nest.xcenter) ** 2 + (evy1 - nest.ycenter) ** 2)
-            dist2 = math.sqrt((evx2 - nest.xcenter) ** 2 + (evy2 - nest.ycenter) ** 2)
-            return (dist1 + dist2) / 4.0
-        else:
-            # Compute expected value of X coordinate of average distance from nest to acquisition
-            # location.
-            evx = density.evx_for_region(cluster.extent.xmin, cluster.extent.xmax,
-                                         cluster.extent.ymin, cluster.extent.ymax)
-
-            # Compute expected value of Y coordinate of average distance from nest to acquisition
-            # location.
-            evy = density.evy_for_region(cluster.extent.xmin, cluster.extent.xmax,
-                                         cluster.extent.ymin, cluster.extent.ymax)
-
-            # Compute expected distance from nest to block acquisitions
-            dist = math.sqrt((evx - nest.xcenter) ** 2 + (evy - nest.ycenter) ** 2)
-            return dist
+        return dist
 
 
 @implements.implements(models.interface.IConcreteInterExpModel1D)
@@ -205,7 +190,7 @@ class InterExpNestHomingTime1Robot(models.interface.IConcreteInterExpModel1D):
 
     """
 
-    def __init__(self, main_config: dict, config: dict):
+    def __init__(self, main_config: dict, config: dict) -> None:
         self.main_config = main_config
         self.config = config
         self.nest = None
@@ -219,14 +204,17 @@ class InterExpNestHomingTime1Robot(models.interface.IConcreteInterExpModel1D):
     def legend_name(self) -> str:
         return 'Predicted Homing Time'
 
-    def run(self,
-            cmdopts: dict,
-            criteria: bc.IConcreteBatchCriteria) -> pd.DataFrame:
+    def run(self, cmdopts: dict, criteria: bc.IConcreteBatchCriteria) -> pd.DataFrame:
+        er = ExecutionRecord()
+
+        if er.inter_record_exists(self.__class__.__name__):
+            return core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
+                                                       self.target_csv_stem() + '.model'))
+
         dirs = criteria.gen_exp_dirnames(cmdopts)
         res_df = pd.DataFrame(columns=dirs, index=[0])
 
         for i, exp in enumerate(dirs):
-
             # Setup cmdopts for intra-experiment model
             cmdopts2 = copy.deepcopy(cmdopts)
             cmdopts2["exp_input_root"] = os.path.join(cmdopts['batch_input_root'], exp)
@@ -241,6 +229,10 @@ class InterExpNestHomingTime1Robot(models.interface.IConcreteInterExpModel1D):
                                                     self.config).run(cmdopts2,
                                                                      criteria,
                                                                      i)
+            # Last datapoint is the closest to the steady state value (presumably) so we select it
+            # to use as our prediction for the experiment within the batch.
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
+            print(res_df)
 
+        er.inter_record_add(self.__class__.__name__)
         return res_df

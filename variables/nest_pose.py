@@ -38,7 +38,7 @@ class NestPose(IBaseVariable):
     def __init__(self, dist_type: str, extents: tp.List[ArenaExtent]):
         self.dist_type = dist_type
         self.extents = extents
-        self.attr_changes = None
+        self.attr_changes = []  # type: tp.List
 
     def gen_attr_changelist(self) -> list:
         """
@@ -46,48 +46,48 @@ class NestPose(IBaseVariable):
         simulation for the specified block distribution/nest.
 
         """
-        if self.attr_changes is None:
+        if not self.attr_changes:
             if self.dist_type == 'SS':
-                return [set([
+                self.attr_changes = [set([
                     (".//arena_map/nests/nest",
                      "dims",
-                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax * 0.8)),
+                     "{0:.9f}, {1:.9f}".format(s.ur.x * 0.1, s.ur.y * 0.8)),
                     (".//arena_map/nests/nest",
                      "center",
-                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax / 2.0)),
+                     "{0:.9f}, {1:.9f}".format(s.ur.x * 0.1, s.ur.y / 2.0)),
                     (".//params/nest",
                      "dims",
-                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax * 0.8)),
+                     "{0:.9f}, {1:.9f}".format(s.ur.x * 0.1, s.ur.y * 0.8)),
                     (".//params/nest",
                      "center",
-                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax / 2.0))
+                     "{0:.9f}, {1:.9f}".format(s.ur.x * 0.1, s.ur.y / 2.0))
 
                 ]) for s in self.extents]
             elif self.dist_type == 'DS':
-                return [set([
+                self.attr_changes = [set([
                     (".//arena_map/nests/nest",
                      "dims",
-                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax * 0.8)),
+                     "{0:.9f}, {1:.9f}".format(s.ur.x * 0.1, s.ur.y * 0.8)),
                     (".//arena_map/nests/nest",
                      "center",
-                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.5, s.ymax * 0.5)),
+                     "{0:.9f}, {1:.9f}".format(s.ur.x * 0.5, s.ur.y * 0.5)),
                     (".//params/nest",
                      "dims",
-                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.1, s.ymax * 0.8)),
+                     "{0:.9f}, {1:.9f}".format(s.ur.x * 0.1, s.ur.y * 0.8)),
                     (".//params/nest",
                      "center",
-                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.5, s.ymax * 0.5)),
+                     "{0:.9f}, {1:.9f}".format(s.ur.x * 0.5, s.ur.y * 0.5)),
                 ]) for s in self.extents]
             elif (self.dist_type == 'PL' or self.dist_type == 'RN' or self.dist_type == 'QS'):
-                return [set([
+                self.attr_changes = [set([
                     (".//arena_map/nests/nest",
                      "dims",
-                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.20, s.xmax * 0.20)),
-                    (".//arena_map/nests/nest", "center", "{0:.9f}, {0:.9f}".format(s.xmax * 0.5)),
+                     "{0:.9f}, {1:.9f}".format(s.ur.x * 0.20, s.ur.x * 0.20)),
+                    (".//arena_map/nests/nest", "center", "{0:.9f}, {0:.9f}".format(s.ur.x * 0.5)),
                     (".//params/nest",
                      "dims",
-                     "{0:.9f}, {1:.9f}".format(s.xmax * 0.20, s.xmax * 0.20)),
-                    (".//params/nest", "center", "{0:.9f}, {0:.9f}".format(s.xmax * 0.5)),
+                     "{0:.9f}, {1:.9f}".format(s.ur.x * 0.20, s.ur.x * 0.20)),
+                    (".//params/nest", "center", "{0:.9f}, {0:.9f}".format(s.ur.x * 0.5)),
                 ])
                     for s in self.extents]
             else:

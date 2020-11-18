@@ -99,6 +99,7 @@ LN_block_trans:
       title: 'Average Block Transport Time (Cumulative)'
       xlabel: 'Interval'
       ylabel: '# Timesteps'
+      batch: True
 
     - src_stem: block-transport
       dest_stem: block-transport-initial-wait-time-int-avg

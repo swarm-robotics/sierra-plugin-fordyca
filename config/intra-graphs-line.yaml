@@ -1,33 +1,81 @@
 LN_block_manip:
   graphs:
     - src_stem: block-manipulation
-      dest_stem: block-manip-events
+      dest_stem: block-manip-events-free
       cols:
         - int_avg_free_pickup_events
         - int_avg_free_drop_events
-        - int_avg_cache_pickup_events
-        - int_avg_cache_drop_events
-      title: 'Block Manipulation Pickups/Drops'
+        - cum_avg_free_pickup_events
+        - cum_avg_free_drop_events
+      title: 'Free Block Manipulation Pickups/Drops'
       legend:
         - 'Average # Free Pickups (Interval)'
         - 'Average # Free Drops (Interval)'
-        - 'Average # Cache Pickups (Interval)'
-        - 'Average # Cache Drops (Interval)'
+        - 'Average # Free Pickups (Cumulative)'
+        - 'Average # Free Drops (Cumulative)'
+
       xlabel: 'Interval'
       ylabel: '# Pickups/Drops'
+
     - src_stem: block-manipulation
-      dest_stem: block-manip-penalties
+      dest_stem: block-manip-events-free-pickup
+      cols:
+        - int_avg_free_pickup_events
+        - cum_avg_free_pickup_events
+      title: 'Free Block Manipulation Pickups'
+      legend:
+        - 'Average # Free Pickups (Interval)'
+        - 'Average # Free Pickups (Cumulative)'
+
+      xlabel: 'Interval'
+      ylabel: '# Pickups/Drops'
+
+    - src_stem: block-manipulation
+      dest_stem: block-manip-events-cache
+      cols:
+        - int_avg_cache_pickup_events
+        - int_avg_cache_drop_events
+        - cum_avg_cache_pickup_events
+        - cum_avg_cache_drop_events
+      title: 'Block Manipulation Pickups/Drops'
+      legend:
+        - 'Average # Cache Pickups (Interval)'
+        - 'Average # Cache Drops (Interval)'
+        - 'Average # Cache Pickups (Cumulative)'
+        - 'Average # Cache Drops (Cumulative)'
+
+      xlabel: 'Interval'
+      ylabel: '# Pickups/Drops'
+
+    - src_stem: block-manipulation
+      dest_stem: block-manip-penalties-free
       cols:
         - int_avg_free_pickup_penalty
         - int_avg_free_drop_penalty
-        - int_avg_cache_pickup_penalty
-        - int_avg_cache_drop_penalty
-      title: 'Block Manipulation Penalties'
+        - cum_avg_free_pickup_penalty
+        - cum_avg_free_drop_penalty
+      title: 'Free Block Manipulation Penalties'
       legend:
         - 'Average Free Pickup Penalty (Interval)'
         - 'Average Free Drop Penalty (Interval)'
+        - 'Average Free Pickup Penalty (Cumulative)'
+        - 'Average Free Drop Penalty (Cumulative)'
+      xlabel: 'Interval'
+      ylabel: 'Penalty'
+
+    - src_stem: block-manipulation
+      dest_stem: block-manip-penalties-cache
+      cols:
+        - int_avg_cache_pickup_penalty
+        - int_avg_cache_drop_penalty
+        - cum_avg_cache_pickup_penalty
+        - cum_avg_cache_drop_penalty
+      title: 'Cached Block Manipulation Penalties'
+      legend:
         - 'Average Cache Pickup Penalty (Interval)'
         - 'Average Cache Drop Penalty (Interval)'
+        - 'Average Cache Pickup Penalty (Cumulative)'
+        - 'Average Cache Drop Penalty (Cumulative)'
       xlabel: 'Interval'
       ylabel: 'Penalty'
 

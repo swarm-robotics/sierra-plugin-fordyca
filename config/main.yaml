@@ -10,20 +10,24 @@ sierra:
   models_leaf: 'models'
 
 perf:
-  intra_perf_csv: 'block-transport.csv'
-  # Journal scenario 1
-  # inverted: false
-  # intra_perf_col: 'cum_avg_transported'
-  # inter_perf_csv: 'blocks-transported-cum-avg.csv'
-  # raw_perf_title: 'Swarm Blocks Collected'
-  # raw_perf_ylabel: '# Blocks'
-
-  # Journal scenario 2
   inverted: false
-  intra_perf_col: 'cum_avg_initial_wait_time'
-  inter_perf_csv: 'block-transport-time-cum-avg.csv'
-  raw_perf_title: 'Target Average Transport Time (Cumulative)'
-  raw_perf_ylabel: 'Timesteps'
+  # intra_perf_csv: 'block-manipulation.csv'
+  # intra_perf_col: 'cum_avg_free_pickup_events'
+  # inter_perf_csv: 'block-manip-free-pickup-events-cum-avg.csv'
+  # raw_perf_title: 'Block Acquisition Rate (Cumulative)'
+  # raw_perf_ylabel: 'Events/Timestep'
+
+  # intra_perf_csv: 'block-transport.csv'
+  # intra_perf_col: 'cum_avg_transport_time'
+  # inter_perf_csv: 'block-transport-time-cum-avg.csv'
+  # raw_perf_title: 'Block Transport Time (Cumulative)'
+  # raw_perf_ylabel: 'Timesteps'
+
+  intra_perf_csv: 'block-transport.csv'
+  intra_perf_col: 'cum_avg_transported'
+  inter_perf_csv: 'blocks-transported-cum-avg.csv'
+  raw_perf_title: 'Blocks Transported (Cumulative Average)'
+  raw_perf_ylabel: '# Blocks'
 
   interference_count_csv: 'interference-in-cum-avg.csv'
   interference_duration_csv: 'interference-duration-cum-avg.csv'

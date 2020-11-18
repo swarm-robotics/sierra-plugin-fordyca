@@ -55,8 +55,8 @@ class StaticCache(IBaseVariable):
                 (".//loop_functions/caches/dynamic", "enable", "false"),
                 (".//loop_functions/caches/static", "enable", "true"),
                 (".//loop_functions/caches/static", "size", "{0:.9f}".format(s)),
-                (".//loop_functions/caches", "dimension", "{0:.9f}".format(max(e.xmax * 0.20,
-                                                                               e.ymax * 0.20)))
+                (".//loop_functions/caches", "dimension", "{0:.9f}".format(max(e.ur.x * 0.20,
+                                                                               e.ur.y * 0.20)))
             ])
                 for e in self.extents for s in self.sizes]
         return self.attr_changes

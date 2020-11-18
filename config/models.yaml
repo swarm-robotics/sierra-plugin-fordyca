@@ -1,3 +1,4 @@
 models:
   - pyfile: 'homing_time'
-  # - pyfile: 'spatial_distribution'
+  # - pyfile: 'searching_distribution'
+  - pyfile: 'block_acq'
