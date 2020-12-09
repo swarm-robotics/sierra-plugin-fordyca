@@ -22,7 +22,7 @@ import scipy.integrate as si
 
 # Project packages
 import core.utils
-from core.vector import Vector2D
+from core.vector import Vector3D
 
 import projects.fordyca.models.representation as rep
 from projects.fordyca.models.dist_measure import DistanceMeasure2D
@@ -37,7 +37,7 @@ class BaseDensity():
         """
         raise NotImplementedError
 
-    def for_region(self, ll: Vector2D, ur: Vector2D):
+    def for_region(self, ll: Vector3D, ur: Vector3D):
         r"""
         Calculate the cumulative probability density within a region defined by the lower left and
         upper right corners of the 2D region using :method:`at_point`.
@@ -46,7 +46,7 @@ class BaseDensity():
         res, _ = si.nquad(self.at_point, [[ll.x, ur.x], [ll.y, ur.y]], opts={'limit': 100})
         return res
 
-    def evx_for_region(self, ll: Vector2D, ur: Vector2D):
+    def evx_for_region(self, ll: Vector3D, ur: Vector3D):
         """
         Calculate the expected value of the X coordinate of the average density location within the
         region defined by the lower left and upper right corners of the 2D region.
@@ -57,7 +57,7 @@ class BaseDensity():
 
         return res
 
-    def evy_for_region(self, ll: Vector2D, ur: Vector2D):
+    def evy_for_region(self, ll: Vector3D, ur: Vector3D):
         """
         Calculate the expected value of the Y coordinate of the average density location within the
         region defined by the lower left and upper right corners of the 2D region.
@@ -67,7 +67,7 @@ class BaseDensity():
                           opts={'limit': 100})
         return res
 
-    def _marginal_pdfx(self, ll: Vector2D, ur: Vector2D):
+    def _marginal_pdfx(self, ll: Vector3D, ur: Vector3D):
         """
         Calculate the marginal PDF of density function for X.
         """
@@ -76,7 +76,7 @@ class BaseDensity():
                           opts={'limit': 100})
         return res
 
-    def _marginal_pdfy(self, ll: Vector2D, ur: Vector2D):
+    def _marginal_pdfy(self, ll: Vector3D, ur: Vector3D):
         """
         Calculate the marginal PDF of the density function for Y.
         """
@@ -122,7 +122,9 @@ class ClusterBlockDensity(BaseDensity):
         r"""
         Calculate the block density at an (X,Y) point within the extent of the block cluster.
         """
-        pt = Vector2D(x, y)
+        assert x is not None and y is not None
+
+        pt = Vector3D(x, y)
 
         # No density outside cluster extent
         if not self.cluster.extent.contains(pt):
@@ -175,12 +177,13 @@ class BlockAcqDensity(BaseDensity):
         :math:`\rho_b` is the block density at (X,Y).
         """
 
-        if x is None:  # Calculating marginal PDF of X
-            pt = Vector2D(self.cluster.extent.center.x, y)
-        elif y is None:  # Calculating marginal PDF of Y
-            pt = Vector2D(x, self.cluster.extent.center.y)
+        if x is None and y is not None:  # Calculating marginal PDF of X
+            pt = Vector3D(self.cluster.extent.center.x, y)
+        elif x is not None and y is None:  # Calculating marginal PDF of Y
+            pt = Vector3D(x, self.cluster.extent.center.y)
         else:  # Normal case
-            pt = Vector2D(x, y)
+            assert x is not None and y is not None
+            pt = Vector3D(x, y)
 
         assert not self.nest.extent.contains(pt), "{0} inside nest@{1}".format(str(pt),
                                                                                str(self.nest.extent))

@@ -21,7 +21,7 @@ import math
 import scipy.integrate as si
 
 # Project packages
-from core.vector import Vector2D
+from core.vector import Vector3D
 from projects.fordyca.models.representation import Nest
 
 
@@ -35,7 +35,7 @@ class DistanceMeasure2D():
         self.scenario = scenario
         self.nest = nest
 
-        if 'RN' in self.scenario:
+        if 'RN' in self.scenario or 'PL' in self.scenario:
             # Our model assumes all robots finish foraging EXACTLY at the nest center, and the
             # implementation has robots pick a random point between where they enter the nest and
             # the center, in order to reduce congestion.
@@ -46,58 +46,24 @@ class DistanceMeasure2D():
             # HALF the nest span in X,Y (HALF being a result of uniform random choice in X,Y) to the
             # nest center:
             # https://math.stackexchange.com/questions/15580/what-is-average-distance-from-center-of-square-to-some-point
-            self.nest_factor = nest.extent.xsize() / 6.0 * (math.sqrt(2.0) + math.log(1 + math.sqrt(2.0)))
-            # self.nest_factor = 0.0
-            # res, _ = si.nquad(lambda x, y: (self.nest.extent.center - Vector2D(x, y)).length(),
-            #                   [[self.nest.extent.ll.x, self.nest.extent.ur.x],
-            #                    [self.nest.extent.ll.y, self.nest.extent.ur.y]],
-            #                   opts={'limit': 100})
-            # print(res)
-            # self.nest_factor = res / self.nest.extent.area()
-
-        elif 'PL' in self.scenario:
-            self.nest_factor = nest.extent.xsize() / 6.0 * (math.sqrt(2.0) + math.log(1 + math.sqrt(2.0)))
-            # self.nest_factor = 0.0
+            self.nest_factor = nest.extent.xsize() / 2.0 / 12.0 * (math.sqrt(2.0) + math.log(1 + math.sqrt(2.0)))
 
         elif 'SS' in self.scenario:
-            # Our model assumes all robots finish foraging EXACTLY at the nest center, and the
-            # implementation has robots pick a random point between where they enter the nest and
-            # the center, in order to reduce congestion. We only consider half the X extent of the
-            # nest because all robots will be approaching the nest from one side.
-            #
-            # TODO: Calculate this analytically.
-            res, _ = si.nquad(lambda x, y: (self.nest.extent.center - Vector2D(x, y)).length(),
-                              [[self.nest.extent.ll.x,
-                                self.nest.extent.ll.x + self.nest.extent.xsize() / 2.0],
-                               [self.nest.extent.ll.y, self.nest.extent.ur.y]],
+            res, _ = si.nquad(lambda x, y: (self.nest.extent.center - Vector3D(x, y)).length(),
+                              [[self.nest.extent.center.x - self.nest.extent.xsize() / 2.0,
+                                self.nest.extent.center.x],
+                               [self.nest.extent.center.y - self.nest.extent.ysize() / 4.0,
+                                self.nest.extent.center.y + self.nest.extent.ysize() / 4.0, ]],
                               opts={'limit': 100})
             self.nest_factor = res / (nest.extent.area() / 2.0)
-
-            # Most robots will enter the nest close to its centerline in Y because of how long the
-            # arena is in X, so we approximate the effective nest area in which we pick a random
-            # point as a smaller square nest.
-            self.nest_factor = nest.extent.xsize() / 6.0 * (math.sqrt(2.0) + math.log(1 + math.sqrt(2.0)))
-
         elif 'DS' in self.scenario:
-            # Our model assumes all robots finish foraging EXACTLY at the nest center, and the
-            # implementation has robots pick a random point between where they enter the nest and
-            # the center, in order to reduce congestion.
-            #
-            # Most robots will enter the nest close to its centerline in Y because of how long the
-            # arena is in X, so we approximate the effective nest area in which we pick a random
-            # point as a smaller square nest.
-            res, _ = si.nquad(lambda x, y: (self.nest.extent.center - Vector2D(x, y)).length(),
-                              [[self.nest.extent.ll.x,
-                                self.nest.extent.ll.x + self.nest.extent.xsize() / 2.0],
-                               [self.nest.extent.ll.y, self.nest.extent.ur.y]],
+            res, _ = si.nquad(lambda x, y: (self.nest.extent.center - Vector3D(x, y)).length(),
+                              [[self.nest.extent.center.x - self.nest.extent.xsize() / 4.0,
+                                self.nest.extent.center.x + self.nest.extent.xsize() / 4.0],
+                               [self.nest.extent.center.y - self.nest.extent.ysize() / 4.0,
+                                self.nest.extent.center.y + self.nest.extent.ysize() / 4.0, ]],
                               opts={'limit': 100})
-            self.nest_factor = res / (nest.extent.area() / 2.0)
+            self.nest_factor = res / (nest.extent.area() * 4.0)
 
-    def to_nest(self, pt: Vector2D):
-        # Euclidian norm because robots travel radially outward from the nest in the center.
-        if 'RN' in self.scenario or 'PL' in self.scenario:
-            return (self.nest.extent.center - pt).length() - self.nest_factor
-
-        # Robot motion is mostly along the X direction in SS, DS.
-        if 'SS' in self.scenario or 'DS' in self.scenario:
-            return (self.nest.extent.center - pt).length()  # + self.nest_factor
+    def to_nest(self, pt: Vector3D):
+        return (self.nest.extent.center - pt).length() - self.nest_factor

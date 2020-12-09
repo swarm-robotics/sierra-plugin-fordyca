@@ -22,43 +22,53 @@ picking up an object.
 import os
 import typing as tp
 import copy
+import math
 
 # 3rd party packages
 import implements
 import pandas as pd
 
 # Project packages
-import models.interface
+import core.models.interface
+from core.models.execution_record import ExecutionRecord
 import core.utils
 import core.variables.time_setup as ts
 import core.variables.batch_criteria as bc
-from core.vector import Vector2D
-from models.execution_record import ExecutionRecord
+from core.vector import Vector3D
 import projects.fordyca.models.representation as rep
 from projects.fordyca.models.density import BlockAcqDensity
 from projects.fordyca.models.dist_measure import DistanceMeasure2D
+from projects.fordyca.models.interference import IntraExpRobotInterferenceRate, IntraExpRobotInterferenceTime
 
 
 def available_models(category: str):
     if category == 'intra':
         return ['IntraExpNestHomingTime1Robot']
     elif category == 'inter':
-        return ['InterExpNestHomingTime1Robot']
+        return ['InterExpNestHomingTime1Robot', 'InterExpNestHomingTimeNRobots']
     else:
         return None
 
 
-@implements.implements(models.interface.IConcreteIntraExpModel1D)
-class IntraExpNestHomingTime1Robot(models.interface.IConcreteIntraExpModel1D):
-    """
-    Models the time it takes a robot to return to the nest after it has picked up an object during
-    foraging during a single experiment within a batch. That is, one model datapoint is computed for
-    each metric collection interval in each simulation.
+################################################################################
+# Intra-experiment models
+################################################################################
 
-    In order to run for a given experiment in a batch, the swarm population size must be 1.
+@implements.implements(core.models.interface.IConcreteIntraExpModel1D)
+class IntraExpNestHomingTime1Robot():
+    r"""
+    Models the time it takes a robot in a swarm of size 1 to return to the nest after it has picked
+    up an object during foraging during a single experiment within a batch. That is, one model
+    datapoint is computed for each metric collection interval in each simulation.
 
-    The model is the same for reactive and cognitive robots, as robots use light sensors to return
-    to the nest regardless of their memory model.
+    Only runs for swarms with :math:`\mathcal{N}=1`.
+
+    .. IMPORTANT::
+       This model does not have a calc_kernel() function which computes the calculation, because it
+       is strictly dependent on arena geometry, block distribution, etc., and must be :meth:`run()`
+       to be used.
+
+    From :xref:`Harwell2021a`.
 
     """
 
@@ -69,21 +79,24 @@ class IntraExpNestHomingTime1Robot(models.interface.IConcreteIntraExpModel1D):
     def run_for_exp(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict, i: int) -> bool:
         return criteria.populations(cmdopts)[i] == 1
 
-    def target_csv_stem(self) -> str:
-        return 'block-transport-time'
+    def target_csv_stems(self) -> tp.List[str]:
+        return ['block-transport-time']
 
-    def legend_name(self) -> str:
-        return 'Predicted Homing Time'
+    def legend_names(self) -> tp.List[str]:
+        return ['Predicted Homing Time']
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__
 
     def run(self,
-            cmdopts: dict,
             criteria: bc.IConcreteBatchCriteria,
-            exp_num: int) -> pd.DataFrame:
+            exp_num: int,
+            cmdopts: dict) -> tp.List[pd.DataFrame]:
         er = ExecutionRecord()
 
         if er.intra_record_exists(self.__class__.__name__, exp_num):
-            return core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                       self.target_csv_stem() + '.model'))
+            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
+                                                        self.target_csv_stems()[0] + '.model'))]
 
         # Calculate nest extent
         nest = rep.Nest(cmdopts, criteria, exp_num)
@@ -117,7 +130,7 @@ class IntraExpNestHomingTime1Robot(models.interface.IConcreteIntraExpModel1D):
 
         # All done!
         er.intra_record_add(self.__class__.__name__, exp_num)
-        return res_df
+        return [res_df]
 
     def _calc_for_result(self,
                          cmdopts: dict,
@@ -156,7 +169,7 @@ class IntraExpNestHomingTime1Robot(models.interface.IConcreteIntraExpModel1D):
     def _calc_acq_edist(self,
                         cluster: rep.BlockCluster,
                         nest: core.utils.ArenaExtent,
-                        scenario: str) -> Vector2D:
+                        scenario: str) -> float:
         dist_measure = DistanceMeasure2D(scenario, nest=nest)
         density = BlockAcqDensity(nest=nest, cluster=cluster, dist_measure=dist_measure)
 
@@ -171,45 +184,160 @@ class IntraExpNestHomingTime1Robot(models.interface.IConcreteIntraExpModel1D):
         evy = density.evy_for_region(ll=ll, ur=ur)
 
         # Compute expected distance from nest to block acquisitions
-        dist = dist_measure.to_nest(Vector2D(evx, evy))
+        dist = dist_measure.to_nest(Vector3D(evx, evy))
 
         return dist
 
 
-@implements.implements(models.interface.IConcreteInterExpModel1D)
-class InterExpNestHomingTime1Robot(models.interface.IConcreteInterExpModel1D):
+@implements.implements(core.models.interface.IConcreteIntraExpModel1D)
+class IntraExpNestHomingTimeNRobots():
+    r"""
+    Models the time it takes a robot in a swarm of :math:`\mathcal{N}` robots to return to the nest
+    after it has picked up an object during foraging during a single experiment within a batch. That
+    is, one model datapoint is computed for each metric collection interval in each simulation.
+
+    Only runs for swarms with :math:`\mathcal{N}>1`.
+
+    .. IMPORTANT::
+       This model does not have a calc_kernel() function which computes the calculation, because it
+       is strictly dependent on arena geometry, block distribution, etc., and must be :meth:`run()`
+       to be used.
+
+    From :xref:`Harwell2021a`.
+
     """
+    @staticmethod
+    def calc_kernel(tau_h1: tp.Union[pd.DataFrame, float],
+                    alpha_rN: tp.Union[pd.DataFrame, float],
+                    tau_avN: tp.Union[pd.DataFrame, float],
+                    n_robots: int) -> tp.Union[pd.DataFrame, float]:
+        r"""
+        Perform the homing time calculation.
+
+        .. math::
+           \tau_h = \tau_{h}^1\big[1 + \alpha_r\tau_{av}\mathcal{N}\big]
+
+        Args:
+            tau_h1: Homing time of robots in the swarm at time :math:`t`: :math:`\tau_{h}^1`.
+
+            alpha_rN: Robot encounter rate of robots in the swarm at time :math:`t`:
+                      :math:`\alpha_{r}`.
+
+            tau_avN: Average time each robot spends in the interference state beginning at time
+                     :math:`t`: :math:`\tau_{av}`.
+
+            n_robots: The number of robots in the swarm.
+
+        Returns:
+            Estimate of the steady state homing time for a swarm of :math:`\mathcal{N}` robots,
+            :math:`\tau_h`.
+        """
+        return tau_h1 * (1.0 + alpha_rN * tau_avN)
+
+    def __init__(self, main_config: dict, config: dict):
+        self.main_config = main_config
+        self.config = config
+
+    def run_for_exp(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict, i: int) -> bool:
+        return criteria.populations(cmdopts)[i] == 1
+
+    def target_csv_stems(self) -> tp.List[str]:
+        return ['block-transport-time']
+
+    def legend_names(self) -> tp.List[str]:
+        return ['Predicted Homing Time']
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__
+
+    def run(self,
+            criteria: bc.IConcreteBatchCriteria,
+            exp_num: int,
+            cmdopts: dict) -> tp.List[pd.DataFrame]:
+
+        er = ExecutionRecord()
+        if er.intra_record_exists(self.__class__.__name__, exp_num):
+            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
+                                                        self.target_csv_stems()[0] + '.model'))]
+
+        cluster_df = core.utils.pd_csv_read(os.path.join(os.path.join(cmdopts['exp_avgd_root']),
+                                                         'block-clusters.csv'))
+
+        # We calculate 1 data point for each interval
+        res_df = pd.DataFrame(columns=['model'], index=cluster_df.index)
+
+        homing1 = IntraExpNestHomingTime1Robot(self.main_config, self.config)
+        tau_h1 = homing1.run(criteria, exp_num, cmdopts)[0]
+
+        av_rateN = IntraExpRobotInterferenceRate(self.main_config, self.config)
+        alpha_rN = av_rateN.run(criteria, exp_num, cmdopts)[0]
+
+        av_timeN = IntraExpRobotInterferenceTime(self.main_config, self.config)
+        tau_avN = av_timeN.run(criteria, exp_num, cmdopts)[0]
+
+        counts_df = core.utils.pd_csv_read(os.path.join(os.path.join(cmdopts['exp_avgd_root']),
+                                                        'block-acq-counts.csv'))
+
+        n_robots = criteria.populations(cmdopts)[exp_num]
+
+        kargs = {
+            'tau_h1': tau_h1,
+            'alpha_rN': alpha_rN,
+            'tau_avN': tau_avN,
+            'n_robots': n_robots
+        }
+        res_df['model'] = self.calc_kernel(**kargs)
+
+        # All done!
+        er.intra_record_add(self.__class__.__name__, exp_num)
+        return [res_df]
+
+
+################################################################################
+# Inter-experiment models
+################################################################################
+
+
+@implements.implements(core.models.interface.IConcreteInterExpModel1D)
+class InterExpNestHomingTime1Robot():
+    r"""
     Models the time it takes a robot to return to the nest after it has picked up an object during
     foraging across all experiments in the batch. That is, one model datapoint is computed for
     each experiment within the batch.
 
-    In order for this model to run, all experiments in the batch must have 1 robot.
+    Only runs for swarms with :math:`\mathcal{N}=1`.
 
-    The model is the same for reactive and cognitive robots, as robots use light sensors to return
-    to the nest regardless of their memory model.
+    .. IMPORTANT::
+       This model does not have a calc_kernel() function which computes the calculation, because
+       it is a summary model, built on simpler intra-experiment models.
 
+    From :xref:`Harwell2021a`.
     """
 
     def __init__(self, main_config: dict, config: dict) -> None:
         self.main_config = main_config
         self.config = config
-        self.nest = None
 
     def run_for_batch(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict) -> bool:
         return all([p == 1 for p in criteria.populations(cmdopts)])
 
-    def target_csv_stem(self) -> str:
-        return 'block-transport-time-cum-avg'
+    def target_csv_stems(self) -> tp.List[str]:
+        return ['block-transport-time-cum-avg']
 
-    def legend_name(self) -> str:
-        return 'Predicted Homing Time'
+    def legend_names(self) -> tp.List[str]:
+        return ['Predicted Homing Time']
 
-    def run(self, cmdopts: dict, criteria: bc.IConcreteBatchCriteria) -> pd.DataFrame:
+    def __repr__(self) -> str:
+        return self.__class__.__name__
+
+    def run(self,
+            criteria: bc.IConcreteBatchCriteria,
+            cmdopts: dict) -> tp.List[pd.DataFrame]:
         er = ExecutionRecord()
 
         if er.inter_record_exists(self.__class__.__name__):
-            return core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                       self.target_csv_stem() + '.model'))
+            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
+                                                        self.target_csv_stems()[0] + '.model'))]
 
         dirs = criteria.gen_exp_dirnames(cmdopts)
         res_df = pd.DataFrame(columns=dirs, index=[0])
@@ -225,14 +353,87 @@ class InterExpNestHomingTime1Robot(models.interface.IConcreteInterExpModel1D):
             cmdopts2["exp_model_root"] = os.path.join(cmdopts['batch_model_root'], exp)
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
+            # Model only targets a single graph
             intra_df = IntraExpNestHomingTime1Robot(self.main_config,
-                                                    self.config).run(cmdopts2,
-                                                                     criteria,
-                                                                     i)
+                                                    self.config).run(criteria,
+                                                                     i,
+                                                                     cmdopts2)[0]
             # Last datapoint is the closest to the steady state value (presumably) so we select it
             # to use as our prediction for the experiment within the batch.
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
             print(res_df)
 
         er.inter_record_add(self.__class__.__name__)
-        return res_df
+        return [res_df]
+
+
+@implements.implements(core.models.interface.IConcreteInterExpModel1D)
+class InterExpNestHomingTimeNRobots():
+    r"""
+    Models the time it takes a robot to return to the nest after it has picked up an object during
+    foraging across all experiments in the batch. That is, one model datapoint is computed for
+    each experiment within the batch.
+
+    .. IMPORTANT::
+       This model does not have a calc_kernel() function which computes the calculation, because
+       it is a summary model, built on simpler intra-experiment models.
+
+    From :xref:`Harwell2021a`.
+    """
+
+    def __init__(self, main_config: dict, config: dict) -> None:
+        self.main_config = main_config
+        self.config = config
+
+    def run_for_batch(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict) -> bool:
+        return True
+
+    def target_csv_stems(self) -> tp.List[str]:
+        return ['block-transport-time-cum-avg']
+
+    def legend_names(self) -> tp.List[str]:
+        return ['Predicted Homing Time']
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__
+
+    def run(self,
+            criteria: bc.IConcreteBatchCriteria,
+            cmdopts: dict) -> tp.List[pd.DataFrame]:
+        er = ExecutionRecord()
+
+        if er.inter_record_exists(self.__class__.__name__):
+            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
+                                                        self.target_csv_stems()[0] + '.model'))]
+
+        dirs = criteria.gen_exp_dirnames(cmdopts)
+        res_df = pd.DataFrame(columns=dirs, index=[0])
+
+        for i, exp in enumerate(dirs):
+            # Setup cmdopts for intra-experiment model
+            cmdopts2 = copy.deepcopy(cmdopts)
+
+            cmdopts2["exp0_output_root"] = os.path.join(cmdopts2["batch_output_root"], dirs[0])
+            cmdopts2["exp0_avgd_root"] = os.path.join(cmdopts2["exp0_output_root"],
+                                                      self.main_config['sierra']['avg_output_leaf'])
+
+            cmdopts2["exp_input_root"] = os.path.join(cmdopts['batch_input_root'], exp)
+            cmdopts2["exp_output_root"] = os.path.join(cmdopts['batch_output_root'], exp)
+            cmdopts2["exp_graph_root"] = os.path.join(cmdopts['batch_graph_root'], exp)
+            cmdopts2["exp_avgd_root"] = os.path.join(cmdopts2["exp_output_root"],
+                                                     self.main_config['sierra']['avg_output_leaf'])
+            cmdopts2["exp_model_root"] = os.path.join(cmdopts['batch_model_root'], exp)
+            core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
+
+            # Model only targets a single graph
+            intra_df = IntraExpNestHomingTimeNRobots(self.main_config,
+                                                     self.config).run(criteria,
+                                                                      i,
+                                                                      cmdopts2)[0]
+            # Last datapoint is the closest to the steady state value (presumably) so we select it
+            # to use as our prediction for the experiment within the batch.
+            res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
+            print(res_df)
+
+        er.inter_record_add(self.__class__.__name__)
+        return [res_df]

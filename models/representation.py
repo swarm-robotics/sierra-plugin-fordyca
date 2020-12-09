@@ -23,13 +23,12 @@ import pandas as pd
 
 # Project packages
 import core.utils
-from core.vector import Vector3D
 import core.variables.batch_criteria as bc
 import core.generators.scenario_generator_parser as sgp
 import projects.fordyca.variables.nest_pose as np
 from core.experiment_spec import ExperimentSpec
 from core.utils import ArenaExtent
-from core.vector import Vector2D
+from core.vector import Vector3D
 
 
 class BlockCluster():
@@ -52,9 +51,27 @@ class BlockCluster():
                             cluster_id=cluster_id,
                             avg_blocks=avg_blocks)
 
-    def __init__(self, ll: Vector2D, ur: Vector2D, cluster_id: int, avg_blocks: float) -> None:
+    def __init__(self, ll: Vector3D, ur: Vector3D, cluster_id: int, avg_blocks: float) -> None:
         self.extent = ArenaExtent.from_corners(ll=ll, ur=ur)
         self.avg_blocks = avg_blocks
+
+
+class Nest():
+    def __init__(self, cmdopts: dict, criteria: bc.IConcreteBatchCriteria, exp_num: int):
+        # Get nest position
+        spec = ExperimentSpec(criteria, exp_num, cmdopts)
+        res = sgp.ScenarioGeneratorParser.reparse_str(cmdopts['scenario'])
+        pose = np.NestPose(res['dist_type'], [spec.arena_dim])
+
+        for path, attr, val in pose.gen_attr_changelist()[0]:
+            if 'nest' in path and 'center' in attr:
+                x, y = val.split(',')
+                center = Vector3D(float(x), float(y), 0.0)
+            if 'nest' in path and 'dims' in attr:
+                x, y = val.split(',')
+                dims = Vector3D(float(x), float(y), 0.0)
+
+        self.extent = ArenaExtent(dims, center - dims / 2.0)
 
 
 class BlockClusterSet():
@@ -71,7 +88,7 @@ class BlockClusterSet():
     def __init__(self,
                  main_config: dict,
                  cmdopts: dict,
-                 nest: core.utils.ArenaExtent,
+                 nest: Nest,
                  sim_opath: str) -> None:
 
         clusters_df = core.utils.pd_csv_read(os.path.join(sim_opath, 'block-clusters.csv'))
@@ -88,27 +105,27 @@ class BlockClusterSet():
             cluster = BlockCluster.from_df(clusters_df, 0)
 
             ll1 = cluster.extent.ll
-            ur1 = Vector2D(nest.extent.ll.x, cluster.extent.ur.y)
+            ur1 = Vector3D(nest.extent.ll.x, cluster.extent.ur.y)
             c1 = BlockCluster(ll=ll1,
                               ur=ur1,
                               cluster_id=0,
                               avg_blocks=cluster.avg_blocks / 4.0)
 
-            ll2 = Vector2D(nest.extent.ll.x, cluster.extent.ll.y)
-            ur2 = Vector2D(nest.extent.ur.x, nest.extent.ll.y)
+            ll2 = Vector3D(nest.extent.ll.x, cluster.extent.ll.y)
+            ur2 = Vector3D(nest.extent.ur.x, nest.extent.ll.y)
             c2 = BlockCluster(ll=ll2,
                               ur=ur2,
                               cluster_id=1,
                               avg_blocks=cluster.avg_blocks / 4.0)
 
-            ll3 = Vector2D(nest.extent.ll.x, nest.extent.ur.y)
-            ur3 = Vector2D(nest.extent.ur.x, cluster.extent.ur.y)
+            ll3 = Vector3D(nest.extent.ll.x, nest.extent.ur.y)
+            ur3 = Vector3D(nest.extent.ur.x, cluster.extent.ur.y)
             c3 = BlockCluster(ll=ll3,
                               ur=ur3,
                               cluster_id=2,
                               avg_blocks=cluster.avg_blocks / 4.0)
 
-            ll4 = Vector2D(nest.extent.ur.x, cluster.extent.ll.y)
+            ll4 = Vector3D(nest.extent.ur.x, cluster.extent.ll.y)
             ur4 = cluster.extent.ur
             c4 = BlockCluster(ll=ll4,
                               ur=ur4,
@@ -125,21 +142,3 @@ class BlockClusterSet():
 
     def __len__(self):
         return len(self.clusters)
-
-
-class Nest():
-    def __init__(self, cmdopts: dict, criteria: bc.IConcreteBatchCriteria, exp_num: int):
-        # Get nest position
-        spec = ExperimentSpec(criteria, cmdopts, exp_num)
-        res = sgp.ScenarioGeneratorParser.reparse_str(cmdopts['scenario'])
-        pose = np.NestPose(res['dist_type'], [spec.arena_dim])
-
-        for path, attr, val in pose.gen_attr_changelist()[0]:
-            if 'nest' in path and 'center' in attr:
-                x, y = val.split(',')
-                center = Vector3D(float(x), float(y), 0.0)
-            if 'nest' in path and 'dims' in attr:
-                x, y = val.split(',')
-                dims = Vector3D(float(x), float(y), 0.0)
-
-        self.extent = ArenaExtent(dims, center - dims / 2.0)

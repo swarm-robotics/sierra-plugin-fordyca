@@ -20,19 +20,20 @@ Free block acquisition models for the FORDYCA project.
 # Core packages
 import os
 import copy
+import typing as tp
 
 # 3rd party packages
 import implements
 import pandas as pd
 
 # Project packages
-import models.interface
+import core.models.interface
+from core.models.execution_record import ExecutionRecord
 import core.utils
 from core.experiment_spec import ExperimentSpec
 import projects.fordyca.models.representation as rep
 import core.variables.batch_criteria as bc
-from core.vector import Vector2D
-from models.execution_record import ExecutionRecord
+from core.vector import Vector3D
 
 from projects.fordyca.models.density import BlockAcqDensity
 from projects.fordyca.models.model_error import Model2DError
@@ -50,9 +51,13 @@ def available_models(category: str):
     else:
         return None
 
+################################################################################
+# Intra-experiment models
+################################################################################
 
-@implements.implements(models.interface.IConcreteIntraExpModel2D)
-class IntraExpAcqSpatialDist(models.interface.IConcreteIntraExpModel2D):
+
+@implements.implements(core.models.interface.IConcreteIntraExpModel2D)
+class IntraExpAcqSpatialDist():
     """
     Models the steady state spatial distribution of the locations which robots acquire blocks,
     assuming purely reactive robots.
@@ -65,17 +70,20 @@ class IntraExpAcqSpatialDist(models.interface.IConcreteIntraExpModel2D):
     def run_for_exp(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict, i: int) -> bool:
         return True
 
-    def target_csv_stem(self) -> str:
-        return 'block-acq-locs2D'
+    def target_csv_stems(self) -> tp.List[str]:
+        return ['block-acq-locs2D']
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__
 
     def run(self,
-            cmdopts: dict,
             criteria: bc.IConcreteBatchCriteria,
-            exp_num: int) -> pd.DataFrame:
+            exp_num: int,
+            cmdopts: dict) -> tp.List[pd.DataFrame]:
         er = ExecutionRecord()
         if er.intra_record_exists(self.__class__.__name__, exp_num):
-            return core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                       self.target_csv_stem() + '.model'))
+            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
+                                                        self.target_csv_stems()[0] + '.model'))]
 
         # Calculate nest extent
         nest = rep.Nest(cmdopts, criteria, exp_num)
@@ -97,7 +105,7 @@ class IntraExpAcqSpatialDist(models.interface.IConcreteIntraExpModel2D):
 
         # Calculate arena resolution
         acq_df = core.utils.pd_csv_read(os.path.join(result_opaths[0], 'block-acq-locs2D.csv'))
-        spec = ExperimentSpec(criteria, cmdopts, exp_num)
+        spec = ExperimentSpec(criteria, exp_num, cmdopts)
         resolution = spec.arena_dim.xsize() / len(acq_df.index)
 
         # Acquisition distribution will be 0 outside of block clusters
@@ -113,7 +121,7 @@ class IntraExpAcqSpatialDist(models.interface.IConcreteIntraExpModel2D):
 
         # All done!
         er.intra_record_add(self.__class__.__name__, exp_num)
-        return res_df
+        return [res_df]
 
     def _calc_for_result(self,
                          cmdopts: dict,
@@ -136,55 +144,17 @@ class IntraExpAcqSpatialDist(models.interface.IConcreteIntraExpModel2D):
                                       dist_measure=dist_measure)
             for i in rangex:
                 for j in rangey:
-                    val = density.for_region(ll=Vector2D(i * resolution,
+                    val = density.for_region(ll=Vector3D(i * resolution,
                                                          j * resolution),
-                                             ur=Vector2D((i + 1) * resolution,
+                                             ur=Vector3D((i + 1) * resolution,
                                                          (j + 1) * resolution))
                     res_df.iloc[i, j] += val
 
         return res_df
 
 
-@implements.implements(models.interface.IConcreteInterExpModel1D)
-class InterExpAcqSpatialDistError(models.interface.IConcreteInterExpModel1D):
-    """
-    Runs :class:`IntraExpAcqSpatialDist` for each experiment in the batch, and compute the average
-    error between model prediction and empirical data as a single data point.
-
-    In order for this model to run, all experiments in the batch must have 1 robot.
-
-    The model is the same for reactive and cognitive robots, as robots use light sensors to return
-    to the nest regardless of their memory model.
-
-    """
-
-    def __init__(self, main_config: dict, config: dict):
-        self.main_config = main_config
-        self.config = config
-        self.nest = None
-
-    def run_for_batch(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict) -> bool:
-        return all([p == 1 for p in criteria.populations(cmdopts)])
-
-    def target_csv_stem(self) -> str:
-        return 'block-acq-locs2D-LN-model-error'
-
-    def legend_name(self) -> str:
-        return 'Model Error'
-
-    def run(self,
-            cmdopts: dict,
-            criteria: bc.IConcreteBatchCriteria) -> pd.DataFrame:
-
-        error = Model2DError('block-acq-locs2D.stddev',
-                             IntraExpAcqSpatialDist,
-                             self.main_config,
-                             self.config)
-        return error.generate(cmdopts, criteria)
-
-
-@implements.implements(models.interface.IConcreteIntraExpModel2D)
-class IntraExpAcqRate(models.interface.IConcreteIntraExpModel2D):
+@implements.implements(core.models.interface.IConcreteIntraExpModel1D)
+class IntraExpAcqRate():
     """
     Models the steady state block acquisition rate of the swarm, assuming purely reactive
     robots. Robots are in 1 of 3 states via their FSM: exploring, homing, or avoiding collision,
@@ -206,17 +176,26 @@ class IntraExpAcqRate(models.interface.IConcreteIntraExpModel2D):
     def run_for_exp(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict, i: int) -> bool:
         return True
 
-    def target_csv_stem(self) -> str:
-        return 'block-manip-events-free-pickup'
+    def target_csv_stems(self) -> tp.List[str]:
+        return ['block-manip-events-free-pickup']
 
-    def run(self, cmdopts: dict, criteria: bc.IConcreteBatchCriteria, exp_num: int) -> pd.DataFrame:
+    def legend_names(self) -> tp.List[str]:
+        return ['Predicted Block Acquisition Rate']
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__
+
+    def run(self,
+            criteria: bc.IConcreteBatchCriteria,
+            exp_num: int,
+            cmdopts: dict) -> tp.List[pd.DataFrame]:
         er = ExecutionRecord()
         if er.intra_record_exists(self.__class__.__name__, exp_num):
-            return core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                       self.target_csv_stem() + '.model'))
+            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
+                                                        self.target_csv_stems()[0] + '.model'))]
 
         homing = IntraExpNestHomingTime1Robot(self.main_config, self.config)
-        homing_df = homing.run(cmdopts, criteria, exp_num)
+        homing_df = homing.run(cmdopts, criteria, exp_num)[0]
 
         # We calculate per-sim, rather than using the averaged block cluster results, because for
         # power law distributions different simulations have different cluster locations, which
@@ -248,7 +227,35 @@ class IntraExpAcqRate(models.interface.IConcreteIntraExpModel2D):
 
         # All done!
         er.intra_record_add(self.__class__.__name__, exp_num)
-        return res_df
+        return [res_df]
+
+        def calc_kernel(self,
+                        exp_count: tp.Union[pd.DataFrame, float],
+                        homing_time: tp.Union[pd.DataFrame, float]) -> tp.Union[pd.DataFrame, float]:
+            r"""
+            Perform the block acquisition rate calculation using Little's Law, modeling CRW robots
+            entering/exiting the homing state using a two state queueing network:
+            robots are either homing or searching, with interference avoidance treated as part of
+            each of those states.
+
+            .. math::
+               \alpha_{b}^1 = \frac{\tau_{h}}{\mathcal{N}_{h}(t)}
+
+            Args:
+                exp_count: Number of robots in the swarm which are searching at time :math:`t`:
+                           :math:`\mathcal{N}_{s}(t)`.
+
+                homing_time: Average time each robot spends in the homing queue beginning at time
+                             :math:`t`: :math:`\tau_{h}`.
+
+            Returns:
+                Estimate of the steady state rate of robots entering the homing queue,
+                :math:`\alpha_{b}^1`.
+            """
+            homing_count = 1.0 - exp_count  # only 1 robot so this is OK to hardcode
+
+            # Only searching robots contribute to the encounter rate
+            return homing_count / homing_time * exp_count
 
     def _calc_for_result(self,
                          cmdopts: dict,
@@ -259,27 +266,70 @@ class IntraExpAcqRate(models.interface.IConcreteIntraExpModel2D):
         homing_time = homing_df['model']
 
         acq_counts_df = core.utils.pd_csv_read(os.path.join(result_opath, 'block-acq-counts.csv'))
-        fsm_counts_df = core.utils.pd_csv_read(os.path.join(result_opath,
-                                                            'fsm-interference-counts.csv'))
+
         # We read these fractions directly from experimental data for the purposes of getting the
         # model correct. In the parent ODE model, these will be variables.
         exp_frac = acq_counts_df['cum_avg_true_exploring_for_goal'] + \
             acq_counts_df['cum_avg_false_exploring_for_goal']
-        int_frac = fsm_counts_df['cum_avg_exp_interference']
 
-        # Robots that are not exploring or avoiding collision are homing by definition
-        homing_frac = (1.0 - exp_frac - int_frac)
+        # Robots that are not exploring are homing by definition (in the queueing network view of
+        # FSM avoiding collision is not a state)
+        homing_frac = (1.0 - exp_frac)
 
-        # L = lambda / (mu - lambda), solving for lambda
-        lam = homing_frac / (homing_time + 1)
+        # Little's law: L=lambda* W, solving for lambda
+        lam = homing_frac / homing_time
 
         # Only searching robots contribute to the encounter rate
         res_df['model'] = lam * exp_frac
         return res_df
 
+################################################################################
+# Inter-experiment models
+################################################################################
 
-@implements.implements(models.interface.IConcreteInterExpModel1D)
-class InterExpAcqRate(models.interface.IConcreteInterExpModel1D):
+
+@implements.implements(core.models.interface.IConcreteInterExpModel1D)
+class InterExpAcqSpatialDistError():
+    """
+    Runs :class:`IntraExpAcqSpatialDist` for each experiment in the batch, and compute the average
+    error between model prediction and empirical data as a single data point.
+
+    In order for this model to run, all experiments in the batch must have 1 robot.
+
+    The model is the same for reactive and cognitive robots, as robots use light sensors to return
+    to the nest regardless of their memory model.
+
+    """
+
+    def __init__(self, main_config: dict, config: dict):
+        self.main_config = main_config
+        self.config = config
+
+    def run_for_batch(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict) -> bool:
+        return all([p == 1 for p in criteria.populations(cmdopts)])
+
+    def target_csv_stems(self) -> tp.List[str]:
+        return ['block-acq-locs2D-LN-model-error']
+
+    def legend_names(self) -> tp.List[str]:
+        return ['Model Error']
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__
+
+    def run(self,
+            criteria: bc.IConcreteBatchCriteria,
+            cmdopts: dict) -> tp.List[pd.DataFrame]:
+
+        error = Model2DError('block-acq-locs2D.stddev',
+                             IntraExpAcqSpatialDist,
+                             self.main_config,
+                             self.config)
+        return error.generate(criteria, cmdopts)
+
+
+@implements.implements(core.models.interface.IConcreteInterExpModel1D)
+class InterExpAcqRate():
     """
     Models the steady state block acquisition rate of the swarm, assuming purely reactive robots.
     That is, one model datapoint is computed for each experiment within the batch.
@@ -290,25 +340,27 @@ class InterExpAcqRate(models.interface.IConcreteInterExpModel1D):
     def __init__(self, main_config: dict, config: dict):
         self.main_config = main_config
         self.config = config
-        self.nest = None
 
     def run_for_batch(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict) -> bool:
         return all([p == 1 for p in criteria.populations(cmdopts)])
 
-    def target_csv_stem(self) -> str:
-        return 'block-manip-free-pickup-events-cum-avg'
+    def target_csv_stems(self) -> tp.List[str]:
+        return ['block-manip-free-pickup-events-cum-avg']
 
-    def legend_name(self) -> str:
-        return 'Predicted Block Acquisition Rate'
+    def legend_names(self) -> tp.List[str]:
+        return ['Predicted Block Acquisition Rate']
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__
 
     def run(self,
-            cmdopts: dict,
-            criteria: bc.IConcreteBatchCriteria) -> pd.DataFrame:
+            criteria: bc.IConcreteBatchCriteria,
+            cmdopts: dict) -> tp.List[pd.DataFrame]:
 
         er = ExecutionRecord()
         if er.inter_record_exists(self.__class__.__name__):
-            return core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                       self.target_csv_stem() + '.model'))
+            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
+                                                        self.target_csv_stems()[0] + '.model'))]
         dirs = criteria.gen_exp_dirnames(cmdopts)
         res_df = pd.DataFrame(columns=dirs, index=[0])
 
@@ -324,13 +376,15 @@ class InterExpAcqRate(models.interface.IConcreteInterExpModel1D):
             cmdopts2["exp_model_root"] = os.path.join(cmdopts['batch_model_root'], exp)
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
+            # Model only targets a single graph
             intra_df = IntraExpAcqRate(self.main_config,
-                                       self.config).run(cmdopts2,
-                                                        criteria,
-                                                        i)
+                                       self.config).run(criteria,
+                                                        i,
+                                                        cmdopts2)[0]
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
 
             print(res_df)
 
+        # All done!
         er.inter_record_add(self.__class__.__name__)
-        return res_df
+        return [res_df]

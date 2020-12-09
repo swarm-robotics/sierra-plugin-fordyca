@@ -1,4 +1,5 @@
 models:
   - pyfile: 'homing_time'
   # - pyfile: 'searching_distribution'
-  - pyfile: 'block_acq'
+  # - pyfile: 'block_acq'
+  # - pyfile: 'interference'

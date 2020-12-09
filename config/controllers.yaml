@@ -4,11 +4,11 @@ base_graphs: &base_graphs
   - LN_block_trans
   - LN_block_acq
   - LN_block_manip
-  - LN_convergence
-  - LN_perception
-  - LN_population
-  - HM_arena
-  - HM_swarm
+  # - LN_convergence
+  # - LN_perception
+  # - LN_population
+  # - HM_arena
+  # - HM_swarm
 
 d0:
   xml:

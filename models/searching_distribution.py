@@ -20,13 +20,14 @@ Intra-experiment models for the swarm's spatial distribution in 2D space.
 
 # Core packages
 import os
+import typing as tp
 
 # 3rd party packages
 import implements
 import pandas as pd
 
 # Project packages
-import models.interface
+import core.models.interface
 import core.utils
 from core.experiment_spec import ExperimentSpec
 import core.variables.batch_criteria as bc
@@ -47,9 +48,13 @@ def available_models(category: str):
     else:
         return None
 
+################################################################################
+# Intra-experiment models
+################################################################################
 
-@implements.implements(models.interface.IConcreteIntraExpModel2D)
-class IntraExpSearchingDistribution(models.interface.IConcreteIntraExpModel2D):
+
+@implements.implements(core.models.interface.IConcreteIntraExpModel2D)
+class IntraExpSearchingDistribution():
     """
     Models swarm's steady state spatial distribution in 2D space when engaged in searching, assuming
     purely reactive robots.
@@ -62,13 +67,16 @@ class IntraExpSearchingDistribution(models.interface.IConcreteIntraExpModel2D):
     def run_for_exp(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict, i: int) -> bool:
         return True
 
-    def target_csv_stem(self) -> str:
-        return 'block-acq-explore-locs2D'
+    def target_csv_stems(self) -> tp.List[str]:
+        return ['block-acq-explore-locs2D']
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__
 
     def run(self,
-            cmdopts: dict,
             criteria: bc.IConcreteBatchCriteria,
-            exp_num: int) -> pd.DataFrame:
+            exp_num: int,
+            cmdopts: dict) -> pd.DataFrame:
 
         # Calculate nest extent
         nest = Nest(cmdopts, criteria, exp_num)
@@ -95,7 +103,7 @@ class IntraExpSearchingDistribution(models.interface.IConcreteIntraExpModel2D):
                                                      'block-acq-explore-locs2D.csv'))
 
         # Calculate arena resolution
-        spec = ExperimentSpec(criteria, cmdopts, exp_num)
+        spec = ExperimentSpec(criteria, exp_num, cmdopts)
         resolution = spec.arena_dim.xsize() / len(exp_df.index)
 
         res_df = pd.DataFrame(columns=exp_df.columns, index=exp_df.index, dtype=float)
@@ -138,9 +146,13 @@ class IntraExpSearchingDistribution(models.interface.IConcreteIntraExpModel2D):
 
         return res_df
 
+################################################################################
+# Inter-experiment models
+################################################################################
 
-@implements.implements(models.interface.IConcreteInterExpModel1D)
-class InterExpSearchingDistributionError(models.interface.IConcreteInterExpModel1D):
+
+@implements.implements(core.models.interface.IConcreteInterExpModel1D)
+class InterExpSearchingDistributionError():
     """
     Runs :class:`IntraExpSearchingDistribution` for each experiment in the batch, and compute the
     average error between model prediction and empirical data as a single data point.
@@ -158,18 +170,21 @@ class InterExpSearchingDistributionError(models.interface.IConcreteInterExpModel
     def run_for_batch(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict) -> bool:
         return all([p == 1 for p in criteria.populations(cmdopts)])
 
-    def target_csv_stem(self) -> str:
-        return 'block-acq-explore-locs2D-LN-model-error'
+    def target_csv_stems(self) -> tp.List[str]:
+        return ['block-acq-explore-locs2D-LN-model-error']
 
-    def legend_name(self) -> str:
-        return 'Model Error'
+    def legend_names(self) -> tp.List[str]:
+        return ['Model Error']
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__
 
     def run(self,
-            cmdopts: dict,
-            criteria: bc.IConcreteBatchCriteria) -> pd.DataFrame:
+            criteria: bc.IConcreteBatchCriteria,
+            cmdopts: dict) -> pd.DataFrame:
 
         error = Model2DError('block-acq-explore-locs2D.stddev',
                              IntraExpSearchingDistribution,
                              self.main_config,
                              self.config)
-        return error.generate(cmdopts, criteria)
+        return error.generate(criteria, cmdopts)

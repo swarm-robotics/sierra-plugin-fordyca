@@ -261,7 +261,7 @@ class RNGenerator(CommonScenarioGenerator):
         CommonScenarioGenerator.__init__(self, *args, **kwargs)
 
     def generate(self):
-        exp_def = self.common_defs.generate()
+        exp_def = super().generate()
 
         # Generate physics engine definitions
         self.generate_physics(exp_def,

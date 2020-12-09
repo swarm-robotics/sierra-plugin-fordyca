@@ -17,12 +17,13 @@
 # Core packages
 import os
 import copy
+import typing as tp
 
 # 3rd party packages
 import pandas as pd
 
 # Project packages
-import models.interface
+import core.models.interface
 import core.utils
 import core.variables.batch_criteria as bc
 
@@ -48,7 +49,7 @@ class Model2DError():
 
     def generate(self,
                  cmdopts: dict,
-                 criteria: bc.IConcreteBatchCriteria) -> pd.DataFrame:
+                 criteria: bc.IConcreteBatchCriteria) -> tp.List[pd.DataFrame]:
         dirs = criteria.gen_exp_dirnames(cmdopts)
         res_df = pd.DataFrame(columns=dirs, index=[0])
 
@@ -76,4 +77,4 @@ class Model2DError():
             # d2_norm = (model_df - data_df).pow(2).sum(1).sum()
             res_df[exp] = d1_norm
 
-        return res_df
+        return [res_df]
