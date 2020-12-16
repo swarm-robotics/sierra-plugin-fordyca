@@ -30,7 +30,6 @@ import pandas as pd
 
 # Project packages
 import core.models.interface
-from core.models.execution_record import ExecutionRecord
 import core.utils
 import core.variables.time_setup as ts
 import core.variables.batch_criteria as bc
@@ -64,7 +63,7 @@ class IntraExpNestHomingTime1Robot():
     Only runs for swarms with :math:`\mathcal{N}=1`.
 
     .. IMPORTANT::
-       This model does not have a calc_kernel() function which computes the calculation, because it
+       This model does not have a kernel() function which computes the calculation, because it
        is strictly dependent on arena geometry, block distribution, etc., and must be :meth:`run()`
        to be used.
 
@@ -92,11 +91,6 @@ class IntraExpNestHomingTime1Robot():
             criteria: bc.IConcreteBatchCriteria,
             exp_num: int,
             cmdopts: dict) -> tp.List[pd.DataFrame]:
-        er = ExecutionRecord()
-
-        if er.intra_record_exists(self.__class__.__name__, exp_num):
-            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                        self.target_csv_stems()[0] + '.model'))]
 
         # Calculate nest extent
         nest = rep.Nest(cmdopts, criteria, exp_num)
@@ -129,7 +123,7 @@ class IntraExpNestHomingTime1Robot():
         res_df['model'] /= len(result_opaths)
 
         # All done!
-        er.intra_record_add(self.__class__.__name__, exp_num)
+        # er.intra_record_add(self.__class__.__name__, exp_num)
         return [res_df]
 
     def _calc_for_result(self,
@@ -196,10 +190,8 @@ class IntraExpNestHomingTimeNRobots():
     after it has picked up an object during foraging during a single experiment within a batch. That
     is, one model datapoint is computed for each metric collection interval in each simulation.
 
-    Only runs for swarms with :math:`\mathcal{N}>1`.
-
     .. IMPORTANT::
-       This model does not have a calc_kernel() function which computes the calculation, because it
+       This model does not have a kernel() function which computes the calculation, because it
        is strictly dependent on arena geometry, block distribution, etc., and must be :meth:`run()`
        to be used.
 
@@ -207,10 +199,10 @@ class IntraExpNestHomingTimeNRobots():
 
     """
     @staticmethod
-    def calc_kernel(tau_h1: tp.Union[pd.DataFrame, float],
-                    alpha_rN: tp.Union[pd.DataFrame, float],
-                    tau_avN: tp.Union[pd.DataFrame, float],
-                    n_robots: int) -> tp.Union[pd.DataFrame, float]:
+    def kernel(tau_h1: tp.Union[pd.DataFrame, float],
+               alpha_rN: tp.Union[pd.DataFrame, float],
+               tau_avN: tp.Union[pd.DataFrame, float],
+               n_robots: int) -> tp.Union[pd.DataFrame, float]:
         r"""
         Perform the homing time calculation.
 
@@ -232,14 +224,39 @@ class IntraExpNestHomingTimeNRobots():
             Estimate of the steady state homing time for a swarm of :math:`\mathcal{N}` robots,
             :math:`\tau_h`.
         """
-        return tau_h1 * (1.0 + alpha_rN * tau_avN)
+        return tau_h1 * (1.0 + alpha_rN * tau_avN / n_robots)
+
+    @staticmethod
+    def calc_kernel_args(criteria: bc.IConcreteBatchCriteria,
+                         exp_num: int,
+                         cmdopts: dict,
+                         main_config: dict) -> dict:
+        homing1 = IntraExpNestHomingTime1Robot(main_config, None)
+        tau_h1 = homing1.run(criteria, exp_num, cmdopts)[0]
+
+        av_rateN = IntraExpRobotInterferenceRate(main_config, None)
+        alpha_rN = av_rateN.run(criteria, exp_num, cmdopts)[0]
+
+        av_timeN = IntraExpRobotInterferenceTime(main_config, None)
+        tau_avN = av_timeN.run(criteria, exp_num, cmdopts)[0]
+
+        counts_df = core.utils.pd_csv_read(os.path.join(os.path.join(cmdopts['exp_avgd_root']),
+                                                        'block-acq-counts.csv'))
+        n_robots = criteria.populations(cmdopts)[exp_num]
+
+        return {
+            'tau_h1': tau_h1,
+            'alpha_rN': alpha_rN,
+            'tau_avN': tau_avN,
+            'n_robots': n_robots
+        }
 
     def __init__(self, main_config: dict, config: dict):
         self.main_config = main_config
         self.config = config
 
     def run_for_exp(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict, i: int) -> bool:
-        return criteria.populations(cmdopts)[i] == 1
+        return True
 
     def target_csv_stems(self) -> tp.List[str]:
         return ['block-transport-time']
@@ -255,41 +272,16 @@ class IntraExpNestHomingTimeNRobots():
             exp_num: int,
             cmdopts: dict) -> tp.List[pd.DataFrame]:
 
-        er = ExecutionRecord()
-        if er.intra_record_exists(self.__class__.__name__, exp_num):
-            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                        self.target_csv_stems()[0] + '.model'))]
-
-        cluster_df = core.utils.pd_csv_read(os.path.join(os.path.join(cmdopts['exp_avgd_root']),
+        cluster_df = core.utils.pd_csv_read(os.path.join(cmdopts['exp_avgd_root'],
                                                          'block-clusters.csv'))
 
         # We calculate 1 data point for each interval
         res_df = pd.DataFrame(columns=['model'], index=cluster_df.index)
-
-        homing1 = IntraExpNestHomingTime1Robot(self.main_config, self.config)
-        tau_h1 = homing1.run(criteria, exp_num, cmdopts)[0]
-
-        av_rateN = IntraExpRobotInterferenceRate(self.main_config, self.config)
-        alpha_rN = av_rateN.run(criteria, exp_num, cmdopts)[0]
-
-        av_timeN = IntraExpRobotInterferenceTime(self.main_config, self.config)
-        tau_avN = av_timeN.run(criteria, exp_num, cmdopts)[0]
-
-        counts_df = core.utils.pd_csv_read(os.path.join(os.path.join(cmdopts['exp_avgd_root']),
-                                                        'block-acq-counts.csv'))
-
-        n_robots = criteria.populations(cmdopts)[exp_num]
-
-        kargs = {
-            'tau_h1': tau_h1,
-            'alpha_rN': alpha_rN,
-            'tau_avN': tau_avN,
-            'n_robots': n_robots
-        }
-        res_df['model'] = self.calc_kernel(**kargs)
+        kargs = self.calc_kernel_args(criteria, exp_num, cmdopts, self.main_config)
+        res_df['model'] = self.kernel(**kargs)
 
         # All done!
-        er.intra_record_add(self.__class__.__name__, exp_num)
+        # er.intra_record_add(self.__class__.__name__, exp_num)
         return [res_df]
 
 
@@ -308,7 +300,7 @@ class InterExpNestHomingTime1Robot():
     Only runs for swarms with :math:`\mathcal{N}=1`.
 
     .. IMPORTANT::
-       This model does not have a calc_kernel() function which computes the calculation, because
+       This model does not have a kernel() function which computes the calculation, because
        it is a summary model, built on simpler intra-experiment models.
 
     From :xref:`Harwell2021a`.
@@ -333,12 +325,6 @@ class InterExpNestHomingTime1Robot():
     def run(self,
             criteria: bc.IConcreteBatchCriteria,
             cmdopts: dict) -> tp.List[pd.DataFrame]:
-        er = ExecutionRecord()
-
-        if er.inter_record_exists(self.__class__.__name__):
-            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                        self.target_csv_stems()[0] + '.model'))]
-
         dirs = criteria.gen_exp_dirnames(cmdopts)
         res_df = pd.DataFrame(columns=dirs, index=[0])
 
@@ -361,9 +347,7 @@ class InterExpNestHomingTime1Robot():
             # Last datapoint is the closest to the steady state value (presumably) so we select it
             # to use as our prediction for the experiment within the batch.
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
-            print(res_df)
 
-        er.inter_record_add(self.__class__.__name__)
         return [res_df]
 
 
@@ -375,7 +359,7 @@ class InterExpNestHomingTimeNRobots():
     each experiment within the batch.
 
     .. IMPORTANT::
-       This model does not have a calc_kernel() function which computes the calculation, because
+       This model does not have a kernel() function which computes the calculation, because
        it is a summary model, built on simpler intra-experiment models.
 
     From :xref:`Harwell2021a`.
@@ -400,12 +384,6 @@ class InterExpNestHomingTimeNRobots():
     def run(self,
             criteria: bc.IConcreteBatchCriteria,
             cmdopts: dict) -> tp.List[pd.DataFrame]:
-        er = ExecutionRecord()
-
-        if er.inter_record_exists(self.__class__.__name__):
-            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                        self.target_csv_stems()[0] + '.model'))]
-
         dirs = criteria.gen_exp_dirnames(cmdopts)
         res_df = pd.DataFrame(columns=dirs, index=[0])
 
@@ -433,7 +411,5 @@ class InterExpNestHomingTimeNRobots():
             # Last datapoint is the closest to the steady state value (presumably) so we select it
             # to use as our prediction for the experiment within the batch.
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
-            print(res_df)
 
-        er.inter_record_add(self.__class__.__name__)
         return [res_df]

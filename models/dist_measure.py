@@ -46,24 +46,26 @@ class DistanceMeasure2D():
             # HALF the nest span in X,Y (HALF being a result of uniform random choice in X,Y) to the
             # nest center:
             # https://math.stackexchange.com/questions/15580/what-is-average-distance-from-center-of-square-to-some-point
-            self.nest_factor = nest.extent.xsize() / 2.0 / 12.0 * (math.sqrt(2.0) + math.log(1 + math.sqrt(2.0)))
+            edge = nest.extent.xsize() / 2.0
+            self.nest_factor = edge / 6.0 * (math.sqrt(2.0) + math.log(1 + math.sqrt(2.0)))
 
         elif 'SS' in self.scenario:
             res, _ = si.nquad(lambda x, y: (self.nest.extent.center - Vector3D(x, y)).length(),
-                              [[self.nest.extent.center.x - self.nest.extent.xsize() / 2.0,
-                                self.nest.extent.center.x],
+                              [[self.nest.extent.center.x,
+                                self.nest.extent.center.x + self.nest.extent.xsize() / 2.0],
                                [self.nest.extent.center.y - self.nest.extent.ysize() / 4.0,
                                 self.nest.extent.center.y + self.nest.extent.ysize() / 4.0, ]],
                               opts={'limit': 100})
-            self.nest_factor = res / (nest.extent.area() / 2.0)
+            self.nest_factor = res / (nest.extent.area())
         elif 'DS' in self.scenario:
             res, _ = si.nquad(lambda x, y: (self.nest.extent.center - Vector3D(x, y)).length(),
                               [[self.nest.extent.center.x - self.nest.extent.xsize() / 4.0,
                                 self.nest.extent.center.x + self.nest.extent.xsize() / 4.0],
-                               [self.nest.extent.center.y - self.nest.extent.ysize() / 4.0,
-                                self.nest.extent.center.y + self.nest.extent.ysize() / 4.0, ]],
+                               [self.nest.extent.center.y - self.nest.extent.ysize() / 8.0,
+                                self.nest.extent.center.y + self.nest.extent.ysize() / 8.0, ]],
                               opts={'limit': 100})
-            self.nest_factor = res / (nest.extent.area() * 4.0)
+            eff_area = nest.extent.xsize() / 2.0 * nest.extent.ysize() / 4.0
+            self.nest_factor = res / eff_area
 
     def to_nest(self, pt: Vector3D):
         return (self.nest.extent.center - pt).length() - self.nest_factor

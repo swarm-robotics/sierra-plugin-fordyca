@@ -29,7 +29,6 @@ import pandas as pd
 
 # Project packages
 import core.models.interface
-from core.models.execution_record import ExecutionRecord
 import core.utils
 import core.variables.batch_criteria as bc
 
@@ -64,7 +63,7 @@ class IntraExpWallInterferenceRate():
     From this, we can use Little's Law to compute the arrival rate for the queue, which is the
     interference rate for the swarm.
 
-    This model has a `:meth:`calc_kernel()` function which computes the calculation, enabling this
+    This model has a `:meth:`kernel()` function which computes the calculation, enabling this
     model to be used as a building block without necessarily needing to be :meth:`run()`.
 
     Only runs for swarms with :math:`\mathcal{N}=1`.
@@ -72,8 +71,8 @@ class IntraExpWallInterferenceRate():
     From :xref:`Harwell2021a`.
     """
     @staticmethod
-    def calc_kernel(int_count1: tp.Union[pd.DataFrame, float],
-                    tau_av1: tp.Union[pd.DataFrame, float]) -> tp.Union[pd.DataFrame, float]:
+    def kernel(int_count1: tp.Union[pd.DataFrame, float],
+               tau_av1: tp.Union[pd.DataFrame, float]) -> tp.Union[pd.DataFrame, float]:
         r"""
         Perform the interference rate calculation using Little's Law, modeling CRW robots
         entering/exiting an interference avoidance state using a two state queueing network: robots
@@ -127,11 +126,6 @@ class IntraExpWallInterferenceRate():
             exp_num: int,
             cmdopts: dict) -> tp.List[pd.DataFrame]:
 
-        er = ExecutionRecord()
-        if er.intra_record_exists(self.__class__.__name__, exp_num):
-            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                        self.target_csv_stems()[0] + '.model'))]
-
         result_opath = os.path.join(cmdopts['exp_avgd_root'])
 
         fsm_df = core.utils.pd_csv_read(os.path.join(result_opath, 'fsm-interference-counts.csv'))
@@ -143,10 +137,9 @@ class IntraExpWallInterferenceRate():
         kargs = self.calc_kernel_args(cmdopts['exp_avgd_root'])
 
         # Run kernel on our results
-        res_df['model'] = self.calc_kernel(**kargs)
+        res_df['model'] = self.kernel(**kargs)
 
         # All done!
-        er.intra_record_add(self.__class__.__name__, exp_num)
         return [res_df]
 
 
@@ -164,18 +157,18 @@ class IntraExpRobotInterferenceRate():
     From this, we can use Little's Law to compute the arrival rate for the queue, which is the
     interference rate for the swarm.
 
-    This model has a `:meth:`calc_kernel()` function which computes the calculation, enabling this
+    This model has a `:meth:`kernel()` function which computes the calculation, enabling this
     model to be used as a building block without necessarily needing to be :meth:`run()`.
 
     From :xref:`Harwell2021a`.
 
     """
     @staticmethod
-    def calc_kernel(int_count1: tp.Union[pd.DataFrame, float],
-                    tau_av1: tp.Union[pd.DataFrame, float],
-                    int_countN: tp.Union[pd.DataFrame, float],
-                    tau_avN: tp.Union[pd.DataFrame, float],
-                    n_robots: int) -> tp.Union[pd.DataFrame, float]:
+    def kernel(int_count1: tp.Union[pd.DataFrame, float],
+               tau_av1: tp.Union[pd.DataFrame, float],
+               int_countN: tp.Union[pd.DataFrame, float],
+               tau_avN: tp.Union[pd.DataFrame, float],
+               n_robots: int) -> tp.Union[pd.DataFrame, float]:
         r"""
         Perform the interference rate calculation using Little's Law, modeling CRW robots
         entering/exiting an interference avoidance state using a two state queueing network: robots
@@ -208,7 +201,7 @@ class IntraExpRobotInterferenceRate():
             entering the interference queue, :math:`\alpha_{r}`.
 
         """
-        alpha_r1 = IntraExpWallInterferenceRate.calc_kernel(int_count1, tau_av1)
+        alpha_r1 = IntraExpWallInterferenceRate.kernel(int_count1, tau_av1)
 
         # All robots can enter the avoidance queue, so we don't need to modify lambda according to
         # the # of contributing robots.
@@ -253,11 +246,6 @@ class IntraExpRobotInterferenceRate():
             exp_num: int,
             cmdopts: dict) -> tp.List[pd.DataFrame]:
 
-        er = ExecutionRecord()
-        if er.intra_record_exists(self.__class__.__name__, exp_num):
-            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                        self.target_csv_stems()[0] + '.model'))]
-
         result_opath = os.path.join(cmdopts['exp_avgd_root'])
         fsm_df = core.utils.pd_csv_read(os.path.join(result_opath, 'fsm-interference-counts.csv'))
 
@@ -268,10 +256,9 @@ class IntraExpRobotInterferenceRate():
         kargs = self.calc_kernel_args(criteria, exp_num, cmdopts)
 
         # Run kernel on our results
-        res_df['model'] = self.calc_kernel(**kargs)
+        res_df['model'] = self.kernel(**kargs)
 
         # All done!
-        er.intra_record_add(self.__class__.__name__, exp_num)
         return [res_df]
 
 
@@ -282,18 +269,18 @@ class IntraExpRobotInterferenceTime():
     interference from other robots.  Uses Little's Law and
     :class:`IntraExpInterferenceRateNRobots`to perform the calculation.
 
-    This model has a `:meth:`calc_kernel()` function which computes the calculation, enabling this
+    This model has a `:meth:`kernel()` function which computes the calculation, enabling this
     model to be used as a building block without necessarily needing to be :meth:`run()`.
 
     From :xref:`Harwell2021a`.
 
     """
     @staticmethod
-    def calc_kernel(int_count1: tp.Union[pd.DataFrame, float],
-                    tau_av1: tp.Union[pd.DataFrame, float],
-                    int_countN: tp.Union[pd.DataFrame, float],
-                    tau_avN: tp.Union[pd.DataFrame, float],
-                    n_robots: int) -> tp.Union[pd.DataFrame, float]:
+    def kernel(int_count1: tp.Union[pd.DataFrame, float],
+               tau_av1: tp.Union[pd.DataFrame, float],
+               int_countN: tp.Union[pd.DataFrame, float],
+               tau_avN: tp.Union[pd.DataFrame, float],
+               n_robots: int) -> tp.Union[pd.DataFrame, float]:
         r"""Perform the interference time calculation.
 
         .. math::
@@ -319,18 +306,18 @@ class IntraExpRobotInterferenceTime():
             the interference queue, :math:`\tau_{av}`.
 
         """
-        alpha_r1 = IntraExpWallInterferenceRate.calc_kernel(int_count1, tau_av1)
-        alpha_rN = IntraExpRobotInterferenceRate.calc_kernel(int_count1,
-                                                             tau_av1,
-                                                             int_countN,
-                                                             tau_avN,
-                                                             n_robots)
+        alpha_r1 = IntraExpWallInterferenceRate.kernel(int_count1, tau_av1)
+        alpha_rN = IntraExpRobotInterferenceRate.kernel(int_count1,
+                                                        tau_av1,
+                                                        int_countN,
+                                                        tau_avN,
+                                                        n_robots)
         # All robots can enter the avoidance queue, so we don't need to modify lambda according to
         # the # of contributing robots.
         if n_robots == 1:
             return int_count1 / alpha_r1
         else:
-            return int_countN / (alpha_rN + alpha_r1 * n_robots)
+            return int_countN / (alpha_rN + alpha_r1 * int_countN)
 
     @staticmethod
     def calc_kernel_args(criteria: bc.IConcreteBatchCriteria,
@@ -359,11 +346,6 @@ class IntraExpRobotInterferenceTime():
             exp_num: int,
             cmdopts: dict) -> tp.List[pd.DataFrame]:
 
-        er = ExecutionRecord()
-        if er.intra_record_exists(self.__class__.__name__, exp_num):
-            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                        self.target_csv_stems()[0] + '.model'))]
-
         result_opath = os.path.join(cmdopts['exp_avgd_root'])
         fsm_df = core.utils.pd_csv_read(os.path.join(result_opath, 'fsm-interference-counts.csv'))
 
@@ -374,10 +356,9 @@ class IntraExpRobotInterferenceTime():
         kargs = self.calc_kernel_args(criteria, exp_num, cmdopts)
 
         # Run kernel on our results
-        res_df['model'] = self.calc_kernel(**kargs)
+        res_df['model'] = self.kernel(**kargs)
 
         # All done!
-        er.intra_record_add(self.__class__.__name__, exp_num)
         return [res_df]
 
 ################################################################################
@@ -393,7 +374,7 @@ class InterExpRobotInterferenceRate():
     the batch.
 
     .. IMPORTANT::
-       This model does not have a calc_kernel() function which computes the calculation, because
+       This model does not have a kernel() function which computes the calculation, because
        it is a summary model, built on simpler intra-experiment models.
 
     """
@@ -417,10 +398,6 @@ class InterExpRobotInterferenceRate():
     def run(self,
             criteria: bc.IConcreteBatchCriteria,
             cmdopts: dict) -> tp.List[pd.DataFrame]:
-        er = ExecutionRecord()
-        if er.inter_record_exists(self.__class__.__name__):
-            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                        self.target_csv_stems()[0] + '.model'))]
 
         dirs = criteria.gen_exp_dirnames(cmdopts)
         res_df = pd.DataFrame(columns=dirs, index=[0])
@@ -448,9 +425,7 @@ class InterExpRobotInterferenceRate():
                                                                       i,
                                                                       cmdopts2)[0]
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
-            print(res_df)
 
-        er.inter_record_add(self.__class__.__name__)
         return [res_df]
 
 
@@ -462,7 +437,7 @@ class InterExpRobotInterferenceTime():
     datapoint is computed for each experiment within the batch.
 
     .. IMPORTANT::
-       This model does not have a calc_kernel() function which computes the calculation, because
+       This model does not have a kernel() function which computes the calculation, because
        it is a summary model, built on simpler intra-experiment models.
 
     """
@@ -486,10 +461,6 @@ class InterExpRobotInterferenceTime():
     def run(self,
             criteria: bc.IConcreteBatchCriteria,
             cmdopts: dict) -> tp.List[pd.DataFrame]:
-        er = ExecutionRecord()
-        if er.inter_record_exists(self.__class__.__name__):
-            return [core.utils.pd_csv_read(os.path.join(cmdopts['exp_model_root'],
-                                                        self.target_csv_stems()[0] + '.model'))]
 
         dirs = criteria.gen_exp_dirnames(cmdopts)
         res_df = pd.DataFrame(columns=dirs, index=[0])
@@ -517,5 +488,4 @@ class InterExpRobotInterferenceTime():
                                                                       cmdopts2)[0]
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
 
-        er.inter_record_add(self.__class__.__name__)
         return [res_df]

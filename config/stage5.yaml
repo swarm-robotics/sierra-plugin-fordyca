@@ -2,66 +2,72 @@
 intra_scenario:
   graphs:
     # raw performance
-    - src_stem: pm-blocks-transported-cum-avg
-      dest_stem: cc-pm-blocks-transported-cum-avg
+    - src_stem: PM-blocks-transported-cum-avg
+      dest_stem: cc-PM-blocks-transported-cum-avg
       title: 'Swarm Performance'
       label: 'Total Blocks Collected'
 
     # scalability
-    - src_stem: pm-scalability-norm
-      dest_stem: cc-pm-scalability-norm
+    - src_stem: PM-scalability-norm
+      dest_stem: cc-PM-scalability-norm
       title: 'Swarm Scalability (Normalized)'
       label: 'Scalability Value'
 
-    - src_stem: pm-scalability-parallel-frac
-      dest_stem: cc-pm-scalability-parallel-frac
+    - src_stem: PM-scalability-parallel-frac
+      dest_stem: cc-PM-scalability-parallel-frac
       title: 'Swarm Scalability (Parallel Fraction)'
       label: 'Scalability Value'
 
       # self-organization
-    - src_stem: pm-self-org-ifl
-      dest_stem: cc-pm-self-org-ifl
+    - src_stem: PM-self-org-ifl
+      dest_stem: cc-PM-self-org-ifl
       title: 'Swarm Spatial Self Organization'
       label: 'Self-Organization Value'
 
-    - src_stem: pm-self-org-mpg
-      dest_stem: cc-pm-self-org-mpg
+    - src_stem: PM-self-org-mpg
+      dest_stem: cc-PM-self-org-mpg
       title: 'Swarm Task-Based Self-Organization'
       label: 'Self-Organization Value'
 
-    - src_stem: pm-self-org
-      dest_stem: cc-pm-self-org
-      title: 'Swarm Weighted Self-Organization'
-      label: 'Self-Organization Value'
-
       # flexibility
-    - src_stem: pm-reactivity
-      dest_stem: cc-pm-reactivity
+    - src_stem: PM-reactivity
+      dest_stem: cc-PM-reactivity
       title: 'Swarm Reactivity'
       label: 'Reactivity Value'
 
-    - src_stem: pm-adaptability
-      dest_stem: cc-pm-adaptability
+    - src_stem: PM-adaptability
+      dest_stem: cc-PM-adaptability
       title: 'Swarm Adaptability'
       label: 'Adaptability Value'
 
-    - src_stem: pm-flexibility
-      dest_stem: cc-pm-flexibility
-      title: 'Swarm Weighted Flexibility'
-      label: 'Flexibility Value'
-
-    - src_stem: pm-robustness-pd
-      dest_stem: cc-pm-robustness-pd
+    - src_stem: PM-robustness-pd
+      dest_stem: cc-PM-robustness-pd
       title: 'Swarm Robustness (Population Dynamics)'
       label: 'Robustness Value'
 
     # robustness
-    - src_stem: pm-robustness-saa
-      dest_stem: cc-pm-robustness-saa
+    - src_stem: PM-robustness-saa
+      dest_stem: cc-PM-robustness-saa
       title: 'Swarm Robustness (SAA Noise)'
       label: 'Robustness Value'
 
-    - src_stem: pm-robustness
-      dest_stem: cc-pm-robustness
-      title: 'Swarm Weighted Robustness'
-      label: 'Robustness Value'
+# Inter-scenario
+inter_scenario:
+  graphs:
+    # raw performance
+    - src_stem: PM-raw
+      dest_stem: sc-PM-raw
+      title: 'Swarm Performance'
+      label: 'Block Collection Rate'
+
+      # scalability
+    - src_stem: PM-scalability-parallel-frac
+      dest_stem: sc-PM-scalability-parallel-frac
+      title: 'Swarm Scalability (Parallel Fraction)'
+      label: 'Scalability Value'
+
+      # self-organization
+    - src_stem: PM-self-org-mfl
+      dest_stem: sc-PM-self-org-mfl
+      title: 'Swarm Spatial Self Organization'
+      label: 'Self-Organization Value'

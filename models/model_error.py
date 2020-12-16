@@ -39,7 +39,7 @@ class Model2DError():
 
     def __init__(self,
                  stddev_fname: str,
-                 model: models.interface.IConcreteIntraExpModel2D,
+                 model: core.models.interface.IConcreteIntraExpModel2D,
                  main_config: dict,
                  model_config: dict) -> None:
         self.stddev_fname = stddev_fname

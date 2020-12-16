@@ -40,26 +40,23 @@ class Cmdline(core.cmdline.CoreCmdline):
 
                                  Valid controllers:
 
-                                 - depth0.{CRW, DPO, MDPO},
-                                 - depth1.{BITD_DPO, OBITD_DPO},
-                                 - depth2.{BIRTD_DPO, OBIRTD_DPO}
+                                 - d0.{CRW, DPO, MDPO},
+                                 - d1.{BITD_DPO, OBITD_DPO},
+                                 - d2.{BIRTD_DPO, OBIRTD_DPO}
 
                                  Head over to the :xref:`FORDYCA` docs for the descriptions of these controllers.
 
-                                 Use=stage{1,2,3,4}; can be omitted otherwise.
 
-                                 """)
+                                 """ + self.stage_usage_doc([1, 2, 3, 4, 5],
+                                                            "Only required for stage 5 if ``--scenario-comp`` is passed."))
 
         self.stage1.add_argument("--static-cache-blocks",
                                  help="""
 
-                                 # of blocks used when the static cache is respawned (depth1 controllers
-                                 Specify the
-                                 only).
+                                 # of blocks used when the static cache is respawned (depth1 controllers only).
 
-                                 Use=stage{1}; can be omitted otherwise.
 
-                                 """,
+                                 """ + self.stage_usage_doc([1]),
                                  default=None)
 
     @staticmethod
