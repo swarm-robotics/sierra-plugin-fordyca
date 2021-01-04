@@ -18,6 +18,7 @@
 import typing as tp
 
 # 3rd party packages
+import implements
 
 # Project packages
 from core.utils import ArenaExtent
@@ -25,9 +26,11 @@ from core.vector import Vector3D
 from core.variables.arena_shape import ArenaShape
 from core.variables.base_variable import IBaseVariable
 from projects.fordyca.variables.nest_pose import NestPose
+from core.xml_luigi import XMLAttrChange, XMLAttrChangeSet, XMLTagRmList, XMLTagAddList
 
 
-class RectangularArena(IBaseVariable):
+@implements.implements(IBaseVariable)
+class RectangularArena():
 
     """
     Maps a list of desired arena dimensions to a list of sets of XML changes to set up the arena for
@@ -51,27 +54,27 @@ class RectangularArena(IBaseVariable):
         self.shape = ArenaShape(extents)
         self.nest_pose = NestPose(self.dist_type, extents)
         self.extents = extents
-        self.attr_changes = []  # type: tp.List
+        self.attr_changes = []
 
-    def gen_attr_changelist(self) -> list:
+    def gen_attr_changelist(self) -> tp.List[XMLAttrChangeSet]:
         """
         Generate list of sets of changes necessary to make to the input file to correctly set up the
         simulation with the specified area size/shape.
         """
         if not self.attr_changes:
-            self.attr_changes = super().gen_attr_changelist()
-
-            grid_changes = [set([(".//arena_map/grid2D",
-                                  "dims",
-                                  "{0}, {1}, 2".format(extent.xsize(), extent.ysize())),
-                                 (".//perception/grid2D", "dims",
-                                  "{0}, {1}, 2".format(extent.xsize(), extent.ysize())),
-                                 ])
+            grid_changes = [XMLAttrChangeSet(XMLAttrChange(".//arena_map/grid2D",
+                                                           "dims",
+                                                           "{0}, {1}, 2".format(extent.xsize(),
+                                                                                extent.ysize())),
+                                             XMLAttrChange(".//perception/grid2D", "dims",
+                                                           "{0}, {1}, 2".format(extent.xsize(),
+                                                                                extent.ysize())),
+                                             )
                             for extent in self.extents]
             nest_changes = self.nest_pose.gen_attr_changelist()
             shape_changes = self.shape.gen_attr_changelist()
 
-            self.attr_changes = [set()]
+            self.attr_changes = [XMLAttrChangeSet() for extent in self.extents]
             for achgs in self.attr_changes:
                 for nchgs in nest_changes:
                     achgs |= nchgs
@@ -82,10 +85,10 @@ class RectangularArena(IBaseVariable):
 
         return self.attr_changes
 
-    def gen_tag_rmlist(self) -> list:
+    def gen_tag_rmlist(self) -> tp.List[XMLTagRmList]:
         return []
 
-    def gen_tag_addlist(self) -> list:
+    def gen_tag_addlist(self) -> tp.List[XMLTagAddList]:
         return []
 
 

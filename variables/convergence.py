@@ -14,13 +14,20 @@
 #  You should have received a copy of the GNU General Public License along with
 #  SIERRA.  If not, see <http://www.gnu.org/licenses/
 
+# Core packages
 import math
 import typing as tp
+
+# 3rd party packages
+import implements
+
+# Project packages
 from core.variables.base_variable import IBaseVariable
 from core.utils import ArenaExtent
 
 
-class Convergence(IBaseVariable):
+@implements.implements(IBaseVariable)
+class Convergence():
 
     """
     Maps a list of desired arena dimensions to a list of sets of XML changes to set up convergence

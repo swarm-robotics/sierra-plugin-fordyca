@@ -23,7 +23,7 @@ perf:
   # raw_perf_title: 'Block Transport Time (Cumulative)'
   # raw_perf_ylabel: 'Timesteps'
 
-  intra_perf_csv: 'block-transport.csv'
+  intra_perf_csv: 'block-transportee.csv'
   intra_perf_col: 'cum_avg_transported'
   inter_perf_csv: 'blocks-transported-cum-avg.csv'
   raw_perf_title: 'Blocks Transported (Cumulative Average)'

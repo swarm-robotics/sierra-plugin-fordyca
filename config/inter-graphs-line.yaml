@@ -9,91 +9,91 @@ LN_perception:
 
 LN_block_trans:
   graphs:
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-int-avg
       col: int_avg_transported
       title: 'Average Blocks Transported (interval)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-cube-int-avg
       col: int_avg_cube_transported
       title: 'Average Cube Blocks Transported (interval)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-ramp-int-avg
       col: int_avg_ramp_transported
       title: 'Average Ramp Blocks Transported (interval)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-cum-avg
       col: cum_avg_transported
       title: 'Average Blocks Transported (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-cube-cum-avg
       col: cum_avg_cube_transported
       title: 'Average Cube Blocks Transported (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-ramp-cum-avg
       col: cum_avg_ramp_transported
       title: 'Average Ramp Blocks Transported (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-cum
       col: cum_transported
       title: 'Blocks Transported (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-cube-cum
       col: cum_cube_transported
       title: 'Cube Blocks Transported (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-ramp-cum
       col: cum_ramp_transported
       title: 'Ramp Blocks Transported (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: block-transporters-int-avg
       col: int_avg_transporters
       title: 'Average Block Transporters (interval)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: block-transporters-cum-avg
       col: cum_avg_transporters
       title: 'Average Block Transporters (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: block-transport-time-int-avg
       col: int_avg_transport_time
       title: 'Average Block Transport Time (interval)'
       xlabel: 'Interval'
       ylabel: '# Timesteps'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: block-transport-time-cum-avg
       col: cum_avg_transport_time
       title: 'Average Block Transport Time (Cumulative)'
@@ -101,59 +101,73 @@ LN_block_trans:
       ylabel: '# Timesteps'
       batch: True
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: block-transport-initial-wait-time-int-avg
       col: int_avg_initial_wait_time
       title: 'Average Block Initial Wait Time (interval)'
       xlabel: 'Interval'
       ylabel: '# Timesteps'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: block-transport-initial-wait-time-cum-avg
       col: cum_avg_initial_wait_time
       title: 'Average Block Initial Wait Time (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
+    - src_stem: block-transporter
+      dest_stem: block-transport-phototaxis-int-avg
+      col: int_avg_phototaxiing_to_goal
+      title: 'Average # Robots Phototaxiing to Goal (Interval)'
+      xlabel: 'Interval'
+      ylabel: '# Robots'
+
+    - src_stem: block-transporter
+      dest_stem: block-transport-phototaxis-cum-avg
+      col: cum_avg_phototaxiing_to_goal
+      title: 'Average # Robots Phototaxiing to Goal (Cumulative)'
+      xlabel: 'Interval'
+      ylabel: '# Robots'
+
 # Depth1
 LN_cache_acq:
   graphs:
-    - src_stem: cache-acquisition
+    - src_stem: cache-acq-counts
       dest_stem: cache-acquisition-int-avg
       col: int_avg_acquiring_goal
       title: 'Average Robots Acquiring Caches (interval)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: cache-acquisition
+    - src_stem: cache-acq-counts
       dest_stem: cache-acquisition-vectoring-int-avg
       col: int_avg_vectoring_to_goal
       title: 'Average Robots Vectoring To Caches (interval)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: cache-acquisition
+    - src_stem: cache-acq-counts
       dest_stem: cache-acquisition-exploring-int-avg
       col: int_avg_exploring_for_goal
       title: 'Average Robots Exploring For Caches (interval)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: cache-acquisition
+    - src_stem: cache-acq-counts
       dest_stem: cache-acquisition-cum-avg
       col: cum_avg_acquiring_goal
       title: 'Average Robots Acquiring Caches (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: cache-acquisition
+    - src_stem: cache-acq-counts
       dest_stem: cache-acquisition-vectoring-cum-avg
       col: cum_avg_vectoring_to_goal
       title: 'Average Robots Vectoring To Caches (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: cache-acquisition
+    - src_stem: cache-acq-counts
       dest_stem: cache-acquisition-exploring-cum-avg
       col: cum_avg_exploring_for_goal
       title: 'Average Robots Exploring For Caches (cumulative)'

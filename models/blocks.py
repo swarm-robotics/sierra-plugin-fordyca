@@ -88,7 +88,7 @@ class IntraExpAcqRate():
                         :math:`\mathcal{N}_{s}(t)`.
 
             int_count1: Number of robots in a swarm of size 1 which are experiencing interference at
-                        time :math:`t`: :math:`\mathcal{N}_{s}(t)`.
+                        time :math:`t`: :math:`\mathcal{N}_{av}(t)`.
 
             tau_hN: Average time each robot spends in the homing queue beginning at time
                     :math:`t`: :math:`\tau_{h}`.

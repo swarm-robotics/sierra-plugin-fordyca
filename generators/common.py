@@ -27,9 +27,7 @@ import pickle
 from core.utils import ArenaExtent as ArenaExtent
 from core.xml_luigi import XMLLuigi
 from core.generators.scenario_generator import ARGoSScenarioGenerator
-from core.variables import block_distribution
-from projects.fordyca.variables import nest_pose, arena
-from core.variables import block_quantity
+from projects.fordyca.variables import block_distribution, nest_pose, arena, block_quantity
 
 
 class CommonScenarioGenerator(ARGoSScenarioGenerator):
@@ -43,11 +41,10 @@ class CommonScenarioGenerator(ARGoSScenarioGenerator):
         Writes generated changes to the simulation definition pickle file.
         """
         chgs = arena.gen_attr_changelist()[0]
-        for a in chgs:
-            exp_def.attr_change(a[0], a[1], a[2])
+        for chg in chgs:
+            exp_def.attr_change(chg.path, chg.attr, chg.value)
 
-        with open(self.spec.exp_def_fpath, 'ab') as f:
-            pickle.dump(chgs, f)
+        chgs.pickle(self.spec.exp_def_fpath)
 
         rms = arena.gen_tag_rmlist()
         if rms:  # non-empty
@@ -63,7 +60,7 @@ class CommonScenarioGenerator(ARGoSScenarioGenerator):
         Does not write generated changes to the simulation definition pickle file.
         """
         for a in block_dist.gen_attr_changelist()[0]:
-            exp_def.attr_change(a[0], a[1], a[2])
+            exp_def.attr_change(a.path, a.attr, a.value)
 
         rms = block_dist.gen_tag_rmlist()
         if rms:  # non-empty
@@ -80,9 +77,9 @@ class CommonScenarioGenerator(ARGoSScenarioGenerator):
         if self.cmdopts['n_blocks'] is not None:
             n_blocks = self.cmdopts['n_blocks']
             chgs1 = block_quantity.BlockQuantity.gen_attr_changelist_from_list([n_blocks / 2],
-                                                                               'cube')
+                                                                               'cube')[0]
             chgs2 = block_quantity.BlockQuantity.gen_attr_changelist_from_list([n_blocks / 2],
-                                                                               'ramp')
+                                                                               'ramp')[0]
         else:
             # This may have already been set by the batch criteria, but we can't know for sure, and
             # we need block quantity definitions to always be written to the pickle file for later
@@ -91,17 +88,15 @@ class CommonScenarioGenerator(ARGoSScenarioGenerator):
             n_blocks2 = int(exp_def.attr_get('.//manifest', 'n_ramp'))
 
             chgs1 = block_quantity.BlockQuantity.gen_attr_changelist_from_list([n_blocks1],
-                                                                               'cube')
+                                                                               'cube')[0]
             chgs2 = block_quantity.BlockQuantity.gen_attr_changelist_from_list([n_blocks2],
-                                                                               'ramp')
-        chgs = [chgs1, chgs2]
+                                                                               'ramp')[0]
 
-        for chgl in chgs:
-            for chg in chgl[0]:
-                exp_def.attr_change(chg[0], chg[1], chg[2])
+        chgs = chgs1 | chgs2
+        for chg in chgs:
+            exp_def.attr_change(chg.path, chg.attr, chg.value)
 
-            with open(self.spec.exp_def_fpath, 'ab') as f:
-                pickle.dump(chgl[0], f)
+        chgs.pickle(self.spec.exp_def_fpath)
 
 
 class SSGenerator(CommonScenarioGenerator):

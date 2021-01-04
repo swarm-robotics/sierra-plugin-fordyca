@@ -131,9 +131,37 @@ LN_perception:
       xlabel: 'Interval'
       ylabel: 'Density'
 
+LN_block_acq:
+  graphs:
+    - src_stem: block-acq-counts
+      dest_stem: block-acq-counts
+      cols:
+        - int_avg_acquiring_goal
+        - cum_avg_acquiring_goal
+        - int_avg_vectoring_to_goal
+        - cum_avg_vectoring_to_goal
+        - int_avg_vectoring_to_goal
+        - cum_avg_vectoring_to_goal
+        - int_avg_true_exploring_for_goal
+        - cum_avg_true_exploring_for_goal
+        - int_avg_false_exploring_for_goal
+        - cum_avg_false_exploring_for_goal
+      title: 'Swarm Block Acquisition'
+      legend:
+        - 'Average # Robots Acquiring Blocks (Interval)'
+        - 'Average # Robots Acquiring Blocks (Cumulative)'
+        - 'Average # Robots Vectoring To Blocks (Interval)'
+        - 'Average # Robots Vectoring To Blocks (Cumulative)'
+        - 'Average # Robots Exploring For Blocks (Interval)'
+        - 'Average # Robots Exploring For Blocks (Cumulative)'
+        - 'Average # Robots Falsely Exploring For Blocks (Interval)'
+        - 'Average # Robots Falsely Exploring For Blocks (Cumulative)'
+      xlabel: 'Interval'
+      ylabel: '# Robots'
+
 LN_block_trans:
   graphs:
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-avg
       cols:
         - int_avg_transported
@@ -152,7 +180,7 @@ LN_block_trans:
       title: 'Average Blocks Transported'
       xlabel: 'Interval'
       ylabel: '# Blocks'
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-cum
       cols:
         - cum_transported
@@ -165,7 +193,8 @@ LN_block_trans:
         - '# Ramp Blocks'
       xlabel: 'Interval'
       ylabel: '# Blocks'
-    - src_stem: block-transport
+
+    - src_stem: block-transportee
       dest_stem: block-transporters-count
       cols:
         - int_avg_transporters
@@ -176,8 +205,8 @@ LN_block_trans:
         - 'Average # Transporters Per Block (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Transporters'
-    - src_stem: block-transport
-      dest_stem: block-transport-time
+    - src_stem: block-transportee
+      dest_stem: block-transportee-time
       cols:
         - int_avg_transport_time
         - cum_avg_transport_time
@@ -188,8 +217,8 @@ LN_block_trans:
       xlabel: 'Interval'
       ylabel: '# Timesteps'
 
-    - src_stem: block-transport
-      dest_stem: block-transport-wait-time
+    - src_stem: block-transportee
+      dest_stem: block-transportee-wait-time
       cols:
         - int_avg_initial_wait_time
         - cum_avg_initial_wait_time
@@ -199,6 +228,18 @@ LN_block_trans:
         - 'Average Initial Wait Time (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Timesteps'
+
+    - src_stem: block-transporter
+      dest_stem: block-transport-homing-nest
+      cols:
+        - int_avg_phototaxiing_to_goal
+        - cum_avg_phototaxiing_to_goal
+      title: 'Swarm Homing Counts'
+      legend:
+        - 'Average # Robots Phototaxiing To Nest (Interval)'
+        - 'Average # Robots Phototaxiing To Nest (Cumulative)'
+      xlabel: 'Interval'
+      ylabel: '# Robots'
 
 # Depth 1
 LN_cache_util:
