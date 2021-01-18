@@ -21,6 +21,7 @@ Free block acquisition and block collection models for the FORDYCA project.
 import os
 import copy
 import typing as tp
+import math
 
 # 3rd party packages
 import implements
@@ -29,15 +30,16 @@ import pandas as pd
 # Project packages
 import core.models.interface
 import core.utils
+import core.variables.time_setup as ts
 from core.experiment_spec import ExperimentSpec
 import projects.fordyca.models.representation as rep
 import core.variables.batch_criteria as bc
 from core.vector import Vector3D
+import core.generators.scenario_generator_parser as sgp
 
 from projects.fordyca.models.density import BlockAcqDensity
 from projects.fordyca.models.model_error import Model2DError
 from projects.fordyca.models.dist_measure import DistanceMeasure2D
-from projects.fordyca.models.homing_time import IntraExpNestHomingTimeNRobots
 
 
 def available_models(category: str):
@@ -58,75 +60,14 @@ def available_models(category: str):
 class IntraExpAcqRate():
     """
     Models the steady state block acquisition rate of the swarm, assuming purely reactive
-    robots. Robots are in 1 of 3 states via their FSM: exploring, homing, or avoiding collision,
-    which we model as a queueing network, in which robots enter the homing queue when they
-    pick up a block, and exit it when they drop the block in the nest. We know:
+    robots CRW robots.
 
-    - The average amount of time a robot spends in the homing queue
-      (:class:`IntraExpNestHomingTimeNRobots`).
-    - The average number of robots in the homing queue from empirical data.
-
-    From this, we can use Little's Law to compute the arrival rate, which is the block acquisition
-    rate.
+    Calculates:
+      # . Expected homing distance.
+      # . Diffusion constant of the swarm, using :xref:`Codling2010`.
+      # . Expected time for a swarm of N robots to diffusion from the center of the nest to the
+         expected block acquisition location. 1/ expected time is the rate.
     """
-
-    @staticmethod
-    def kernel(exp_countN: tp.Union[pd.DataFrame, float],
-               tau_hN: tp.Union[pd.DataFrame, float],
-               n_robots: int) -> tp.Union[pd.DataFrame, float]:
-        r"""
-        Perform the block acquisition rate calculation using Little's Law, modeling CRW robots
-        entering/exiting the homing state using a two state queueing network:
-        robots are either homing or searching, with interference avoidance treated as part of
-        each of those states.
-
-        .. math::
-           \alpha_{b}^1 = \frac{\tau_{h}}{\mathcal{N}_{h}(t)}
-
-        Args:
-            exp_countN: Number of robots in the swarm which are searching at time :math:`t`:
-                        :math:`\mathcal{N}_{s}(t)`.
-
-            int_count1: Number of robots in a swarm of size 1 which are experiencing interference at
-                        time :math:`t`: :math:`\mathcal{N}_{av}(t)`.
-
-            tau_hN: Average time each robot spends in the homing queue beginning at time
-                    :math:`t`: :math:`\tau_{h}`.
-
-        Returns:
-            Estimate of the steady state rate of robots entering the homing queue,
-            :math:`\alpha_{b}`.
-        """
-        homing_count = (n_robots - exp_countN)
-
-        return homing_count / tau_hN
-
-    @staticmethod
-    def calc_kernel_args(criteria:  bc.IConcreteBatchCriteria,
-                         exp_num: int,
-                         cmdopts: dict,
-                         main_config: dict):
-        # Calculate homing_time kernel args
-        kargs1 = IntraExpNestHomingTimeNRobots.calc_kernel_args(criteria,
-                                                                exp_num,
-                                                                cmdopts,
-                                                                main_config)
-
-        # Run kernel to get tau_hN
-        tau_hN = IntraExpNestHomingTimeNRobots.kernel(**kargs1)['model']
-        acq_counts_df = core.utils.pd_csv_read(os.path.join(cmdopts['exp_avgd_root'],
-                                                            'block-acq-counts.csv'))
-
-        # We read these fractions directly from experimental data for the purposes of getting the
-        # model correct. In the parent ODE model, these will be variables.
-        exp_count = acq_counts_df['cum_avg_true_exploring_for_goal'] + \
-            acq_counts_df['cum_avg_false_exploring_for_goal']
-
-        return {
-            'exp_countN': exp_count,
-            'tau_hN': tau_hN,
-            'n_robots': kargs1['n_robots'],
-        }
 
     def __init__(self, main_config: dict, config: dict) -> None:
         self.main_config = main_config
@@ -150,12 +91,61 @@ class IntraExpAcqRate():
             cmdopts: dict) -> tp.List[pd.DataFrame]:
 
         result_opath = os.path.join(cmdopts['exp_avgd_root'])
+
+        # We calculate per-sim, rather than using the averaged block cluster results, because for
+        # power law distributions different simulations have different cluster locations, which
+        # affects the distribution via locality.
+        #
+        # For all other block distributions, we can operate on the averaged results, because the
+        # position of block clusters is the same in all simulations.
+        if 'PL' in cmdopts['scenario']:
+            result_opaths = [os.path.join(cmdopts['exp_output_root'],
+                                          d,
+                                          self.main_config['sim']['sim_metrics_leaf'])
+                             for d in os.listdir(cmdopts['exp_output_root']) if
+                             self.main_config['sierra']['avg_output_leaf'] not in d]
+        else:
+            result_opaths = [os.path.join(cmdopts['exp_avgd_root'])]
+
+        dist = 0.0
+        nest = rep.Nest(cmdopts, criteria, exp_num)
+
+        acq_dist = ExpectedAcqDist()
+        for result in result_opaths:
+            dist += acq_dist(cmdopts, result, nest)
+
+        # Average our results
+        dist /= len(result_opaths)
+        n_robots = criteria.populations(cmdopts)[exp_num]
+
+        fudges = {
+            'SS': 1.293,
+            'DS': 1.22,
+            'RN': 1.25,
+            'PL': 1.30
+        }
+        res = sgp.ScenarioGeneratorParser.reparse_str(cmdopts['scenario'])
+
+        tick_len = 1.0 / ts.kTICKS_PER_SECOND
+        wander_speed = float(self.config['wander_mean_speed'])
+
+        # From Codling2010
+
+        D = (wander_speed ** 2 * 1.293 / (4 * tick_len)) * \
+            math.pow(n_robots, fudges[res['dist_type']])
+
+        # diffusion time = (diffusion dist) ^2 / (2 * D)
+        diff_time = dist ** 2 / (2 * D)
+
+        # Inverse of diffusion time from nest to expected acquisition location is alpha_b
+        alpha_b = 1.0 / diff_time
+        print(D, dist, diff_time, alpha_b)
+
         rate_df = core.utils.pd_csv_read(os.path.join(result_opath, 'block-manipulation.csv'))
 
         # We calculate 1 data point for each interval
         res_df = pd.DataFrame(columns=['model'], index=rate_df.index)
-        kargs = self.calc_kernel_args(criteria, exp_num, cmdopts, self.main_config)
-        res_df['model'] = self.kernel(**kargs)
+        res_df['model'] = alpha_b
 
         # All done!
         return [res_df]
@@ -373,3 +363,44 @@ class InterExpCollectionRate():
 
         # All done!
         return [res_df]
+
+################################################################################
+# Helper Classes
+################################################################################
+
+
+class ExpectedAcqDist():
+    def __call__(self, cmdopts: dict, result_opath: str, nest: rep.Nest) -> float:
+
+        # Get clusters in the arena
+        clusters = rep.BlockClusterSet(cmdopts, nest, result_opath)
+
+        # Integrate to find average distance from nest to all clusters, weighted by acquisition
+        # density.
+        dist = 0.0
+        for cluster in clusters:
+            dist += self._nest_to_cluster(cluster, nest, cmdopts['scenario'])
+
+        return dist / len(clusters)
+
+    def _nest_to_cluster(self,
+                         cluster: rep.BlockCluster,
+                         nest: core.utils.ArenaExtent,
+                         scenario: str) -> float:
+        dist_measure = DistanceMeasure2D(scenario, nest=nest)
+
+        density = BlockAcqDensity(nest=nest, cluster=cluster, dist_measure=dist_measure)
+
+        # Compute expected value of X coordinate of average distance from nest to acquisition
+        # location.
+        ll = cluster.extent.ll
+        ur = cluster.extent.ur
+        evx = density.evx_for_region(ll=ll, ur=ur)
+
+        # Compute expected value of Y coordinate of average distance from nest to acquisition
+        # location.
+        evy = density.evy_for_region(ll=ll, ur=ur)
+
+        # Compute expected distance from nest to block acquisitions
+        dist = dist_measure.to_nest(Vector3D(evx, evy))
+        return dist

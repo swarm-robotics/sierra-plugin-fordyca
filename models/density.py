@@ -185,13 +185,14 @@ class BlockAcqDensity(BaseDensity):
             assert x is not None and y is not None
             pt = Vector3D(x, y)
 
-        assert not self.nest.extent.contains(pt), "{0} inside nest@{1}".format(str(pt),
-                                                                               str(self.nest.extent))
+        # assert not self.nest.extent.contains(pt), "{0} inside nest@{1}".format(str(pt),
+        #                                                                        str(self.nest.extent))
 
         # No acquisitions possible if the cluster never had any blocks in it during simulation.
         if self.rho is None:
             return 0.0
 
         z = self.dist_measure.to_nest(pt)
-
+        if z < 0:
+            z = 0
         return 1.0 / ((math.sqrt(z) + self.rho) ** 2) * self.norm_factor

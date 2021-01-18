@@ -127,7 +127,7 @@ class IntraExpSearchingDistribution():
                          res_df: pd.DataFrame):
 
         # Get clusters in the arena
-        clusters = BlockClusterSet(self.main_config, cmdopts, result_opath)
+        clusters = BlockClusterSet(cmdopts, result_opath)
 
         dist_measure = DistanceMeasure2D(cmdopts['scenario'])
         density = ExplorationDensity(nest=nest,

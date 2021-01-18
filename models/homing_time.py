@@ -38,6 +38,7 @@ import projects.fordyca.models.representation as rep
 from projects.fordyca.models.density import BlockAcqDensity
 from projects.fordyca.models.dist_measure import DistanceMeasure2D
 from projects.fordyca.models.interference import IntraExpRobotInterferenceRate, IntraExpRobotInterferenceTime
+from projects.fordyca.models.blocks import ExpectedAcqDist
 
 
 def available_models(category: str):
@@ -54,7 +55,7 @@ def available_models(category: str):
 ################################################################################
 
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraExpNestHomingTime1Robot():
+class IntraExpHomingTime1Robot():
     r"""
     Models the time it takes a robot in a swarm of size 1 to return to the nest after it has picked
     up an object during foraging during a single experiment within a batch. That is, one model
@@ -123,7 +124,6 @@ class IntraExpNestHomingTime1Robot():
         res_df['model'] /= len(result_opaths)
 
         # All done!
-        # er.intra_record_add(self.__class__.__name__, exp_num)
         return [res_df]
 
     def _calc_for_result(self,
@@ -131,60 +131,22 @@ class IntraExpNestHomingTime1Robot():
                          result_opath: str,
                          nest: rep.Nest,
                          res_df: pd.DataFrame):
-        # Get clusters in the arena
-        clusters = rep.BlockClusterSet(self.main_config, cmdopts, nest, result_opath)
 
-        # Integrate to find average distance from nest to all clusters, weighted by acquisition
-        # density.
-        dist = 0.0
-        for cluster in clusters:
-            dist += self._calc_acq_edist(cluster, nest, cmdopts['scenario'])
+        avg_dist = ExpectedAcqDist()(cmdopts, result_opath, nest)
 
-        avg_dist = dist / len(clusters)
+        # After getting the average distance to ANY block in ANY cluster in the arena, we can
+        # compute the average time, in SECONDS, that robots spend returning to the nest.
+        avg_homing_sec = avg_dist / float(self.config['homing_mean_speed'])
 
-        spatial_df = core.utils.pd_csv_read(os.path.join(cmdopts['exp_avgd_root'],
-                                                         'spatial-movement.csv'))
+        # Convert seconds to timesteps for displaying on graphs
+        avg_homing_ts = avg_homing_sec * ts.kTICKS_PER_SECOND
 
-        # Finally, calculate the average homing time for each interval in the simulation
-        for idx in spatial_df.index:
-            # Reported in cm/s, and we need m/s
-            avg_vel = spatial_df.loc[idx, 'cum_avg_velocity_homing'] / 100.0
-
-            # After getting the average distance to ANY block in ANY cluster in the arena, we can
-            # compute the average time, in SECONDS, that robots spend returning to the nest.
-            avg_homing_sec = avg_dist / avg_vel
-
-            # Convert seconds to timesteps for displaying on graphs
-            avg_homing_ts = avg_homing_sec * ts.kTICKS_PER_SECOND
-
-            # All done!
-            res_df.loc[idx, 'model'] += avg_homing_ts
-
-    def _calc_acq_edist(self,
-                        cluster: rep.BlockCluster,
-                        nest: core.utils.ArenaExtent,
-                        scenario: str) -> float:
-        dist_measure = DistanceMeasure2D(scenario, nest=nest)
-        density = BlockAcqDensity(nest=nest, cluster=cluster, dist_measure=dist_measure)
-
-        # Compute expected value of X coordinate of average distance from nest to acquisition
-        # location.
-        ll = cluster.extent.ll
-        ur = cluster.extent.ur
-        evx = density.evx_for_region(ll=ll, ur=ur)
-
-        # Compute expected value of Y coordinate of average distance from nest to acquisition
-        # location.
-        evy = density.evy_for_region(ll=ll, ur=ur)
-
-        # Compute expected distance from nest to block acquisitions
-        dist = dist_measure.to_nest(Vector3D(evx, evy))
-
-        return dist
+        # All done!
+        res_df['model'] += avg_homing_ts
 
 
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraExpNestHomingTimeNRobots():
+class IntraExpHomingTimeNRobots():
     r"""
     Models the time it takes a robot in a swarm of :math:`\mathcal{N}` robots to return to the nest
     after it has picked up an object during foraging during a single experiment within a batch. That
@@ -200,55 +162,54 @@ class IntraExpNestHomingTimeNRobots():
     """
     @staticmethod
     def kernel(tau_h1: tp.Union[pd.DataFrame, float],
-               alpha_rN: tp.Union[pd.DataFrame, float],
+               alpha_caN: tp.Union[pd.DataFrame, float],
                tau_avN: tp.Union[pd.DataFrame, float],
-               n_robots: int) -> tp.Union[pd.DataFrame, float]:
+               N: int) -> tp.Union[pd.DataFrame, float]:
         r"""
         Perform the homing time calculation.
 
         .. math::
-           \tau_h = \tau_{h}^1\big[1 + \alpha_r\tau_{av}\mathcal{N}\big]
+           \tau_h = \tau_{h}^1\big[1 + \frac{\alpha_ca\tau_{av}}{\mathcal{N}}\big]
 
         Args:
             tau_h1: Homing time of robots in the swarm at time :math:`t`: :math:`\tau_{h}^1`.
 
-            alpha_rN: Robot encounter rate of robots in the swarm at time :math:`t`:
+            alpha_caN: Robot encounter rate of robots in the swarm at time :math:`t`:
                       :math:`\alpha_{r}`.
 
             tau_avN: Average time each robot spends in the interference state beginning at time
                      :math:`t`: :math:`\tau_{av}`.
 
-            n_robots: The number of robots in the swarm.
+            N: The number of robots in the swarm.
 
         Returns:
             Estimate of the steady state homing time for a swarm of :math:`\mathcal{N}` robots,
             :math:`\tau_h`.
         """
-        return tau_h1 * (1.0 + alpha_rN * tau_avN / n_robots)
+        return tau_h1 * (1.0 + alpha_caN * tau_avN / N)
 
     @staticmethod
     def calc_kernel_args(criteria: bc.IConcreteBatchCriteria,
                          exp_num: int,
                          cmdopts: dict,
-                         main_config: dict) -> dict:
-        homing1 = IntraExpNestHomingTime1Robot(main_config, None)
+                         main_config: dict,
+                         model_config: dict) -> dict:
+        homing1 = IntraExpHomingTime1Robot(main_config, model_config)
         tau_h1 = homing1.run(criteria, exp_num, cmdopts)[0]
 
-        av_rateN = IntraExpRobotInterferenceRate(main_config, None)
-        alpha_rN = av_rateN.run(criteria, exp_num, cmdopts)[0]
+        av_rateN = IntraExpRobotInterferenceRate(main_config, model_config)
+        alpha_caN = av_rateN.run(criteria, exp_num, cmdopts)[0]
 
-        av_timeN = IntraExpRobotInterferenceTime(main_config, None)
+        av_timeN = IntraExpRobotInterferenceTime(main_config, model_config)
         tau_avN = av_timeN.run(criteria, exp_num, cmdopts)[0]
 
-        counts_df = core.utils.pd_csv_read(os.path.join(os.path.join(cmdopts['exp_avgd_root']),
-                                                        'block-acq-counts.csv'))
-        n_robots = criteria.populations(cmdopts)[exp_num]
+        N = criteria.populations(cmdopts)[exp_num]
 
         return {
             'tau_h1': tau_h1,
-            'alpha_rN': alpha_rN,
+            'alpha_caN': alpha_caN,
             'tau_avN': tau_avN,
-            'n_robots': n_robots
+            'N': N
         }
 
     def __init__(self, main_config: dict, config: dict):
@@ -277,11 +238,10 @@ class IntraExpNestHomingTimeNRobots():
 
         # We calculate 1 data point for each interval
         res_df = pd.DataFrame(columns=['model'], index=cluster_df.index)
-        kargs = self.calc_kernel_args(criteria, exp_num, cmdopts, self.main_config)
+        kargs = self.calc_kernel_args(criteria, exp_num, cmdopts, self.main_config, self.config)
         res_df['model'] = self.kernel(**kargs)
 
         # All done!
-        # er.intra_record_add(self.__class__.__name__, exp_num)
         return [res_df]
 
 
@@ -291,7 +251,7 @@ class IntraExpNestHomingTimeNRobots():
 
 
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpNestHomingTime1Robot():
+class InterExpHomingTime1Robot():
     r"""
     Models the time it takes a robot to return to the nest after it has picked up an object during
     foraging across all experiments in the batch. That is, one model datapoint is computed for
@@ -340,10 +300,10 @@ class InterExpNestHomingTime1Robot():
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
             # Model only targets a single graph
-            intra_df = IntraExpNestHomingTime1Robot(self.main_config,
-                                                    self.config).run(criteria,
-                                                                     i,
-                                                                     cmdopts2)[0]
+            intra_df = IntraExpHomingTime1Robot(self.main_config,
+                                                self.config).run(criteria,
+                                                                 i,
+                                                                 cmdopts2)[0]
             # Last datapoint is the closest to the steady state value (presumably) so we select it
             # to use as our prediction for the experiment within the batch.
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
@@ -352,7 +312,7 @@ class InterExpNestHomingTime1Robot():
 
 
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpNestHomingTimeNRobots():
+class InterExpHomingTimeNRobots():
     r"""
     Models the time it takes a robot to return to the nest after it has picked up an object during
     foraging across all experiments in the batch. That is, one model datapoint is computed for
@@ -404,10 +364,10 @@ class InterExpNestHomingTimeNRobots():
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
             # Model only targets a single graph
-            intra_df = IntraExpNestHomingTimeNRobots(self.main_config,
-                                                     self.config).run(criteria,
-                                                                      i,
-                                                                      cmdopts2)[0]
+            intra_df = IntraExpHomingTimeNRobots(self.main_config,
+                                                 self.config).run(criteria,
+                                                                  i,
+                                                                  cmdopts2)[0]
             # Last datapoint is the closest to the steady state value (presumably) so we select it
             # to use as our prediction for the experiment within the batch.
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
