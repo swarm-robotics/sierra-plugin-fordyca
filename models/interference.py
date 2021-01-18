@@ -35,12 +35,12 @@ import core.variables.batch_criteria as bc
 
 def available_models(category: str):
     if category == 'intra':
-        return ['IntraExpWallInterferenceRate',
-                'IntraExpRobotInterferenceRate',
-                'IntraExpRobotInterferenceTime']
+        return ['IntraExp_WallInterferenceRate_1Robot',
+                'IntraExp_RobotInterferenceRate_NRobots',
+                'IntraExp_RobotInterferenceTime_NRobots']
     elif category == 'inter':
-        return ['InterExpRobotInterferenceRate',
-                'InterExpRobotInterferenceTime']
+        return ['InterExp_RobotInterferenceRate_NRobots',
+                'InterExp_RobotInterferenceTime_NRobots']
     else:
         return None
 
@@ -50,12 +50,12 @@ def available_models(category: str):
 
 
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraExpWallInterferenceRate():
+class IntraExp_WallInterferenceRate_1Robot():
     r"""
-    Models the steady state interference rate of a swarm of size 1, assuming purely reactive
-    robots. Robots are in 1 of 3 states via their FSM: exploring, homing, or avoiding collision,
-    which we model as a queueing network, in which robots enter the interference queue when
-    sense a nearby wall, and exit it sometime later. We know:
+    Models the steady state interference rate of a CRW swarm of size 1. Robots are in 1 of 4 states
+    via their FSM: exploring, homing, or avoiding collision while exploring/homing, which we model
+    as a queueing network, in which robots enter the interference queue when sense a nearby wall,
+    and exit it sometime later. We know:
 
     - The average amount of time a robot spends in the interference queue from empirical data.
     - The average number of robots in the interference queue from empirical data.
@@ -66,12 +66,19 @@ class IntraExpWallInterferenceRate():
     This model has a `:meth:`kernel()` function which computes the calculation, enabling this
     model to be used as a building block without necessarily needing to be :meth:`run()`.
 
-    Only runs for swarms with :math:`\mathcal{N}=1`.
+    Only :method:`run()`s for swarms with :math:`\mathcal{N}=1`.
+
+    .. IMPORTANT::
+       :method:`run`() currently reads the following from experimental data:
+
+       - :math:`\tau_{av}^1`
+       - :math:`\tau_{ca}^1`
 
     From :xref:`Harwell2021a`.
+
     """
     @staticmethod
-    def kernel(int_count1: tp.Union[pd.DataFrame, float],
+    def kernel(N_av1: tp.Union[pd.DataFrame, float],
                tau_av1: tp.Union[pd.DataFrame, float]) -> tp.Union[pd.DataFrame, float]:
         r"""
         Perform the interference rate calculation using Little's Law, modeling CRW robots
@@ -82,7 +89,7 @@ class IntraExpWallInterferenceRate():
            \alpha_{r}^1 = \frac{\tau_{av}}{\mathcal{N}_{av}(t)}
 
         Args:
-            int_count1: Number of robots in the swarm which are experiencing interference at time
+            N_av1: Number of robots in the swarm which are experiencing interference at time
                         :math:`t`: :math:`\mathcal{N}_{av}(t)`.
 
             tau_av1: Average time each robot spends in the interference state beginning at time
@@ -90,18 +97,18 @@ class IntraExpWallInterferenceRate():
 
         Returns:
             Estimate of the steady state rate of robots entering the interference queue,
-            :math:`\alpha_{r}^1`.
+            :math:`\alpha_{ca}^1`.
         """
         # All robots can enter the avoidance queue, so we don't need to modify lambda according to
         # the # of contributing robots.
-        return int_count1 / tau_av1
+        return N_av1 / tau_av1
 
     @staticmethod
     def calc_kernel_args(exp_avgd_root: str) -> tp.Dict[str, pd.DataFrame]:
         fsm_counts_df = core.utils.pd_csv_read(os.path.join(exp_avgd_root,
                                                             'fsm-interference-counts.csv'))
         return {
-            'int_count1': fsm_counts_df['cum_avg_exp_interference'],
+            'N_av1': fsm_counts_df['cum_avg_exp_interference'],
             'tau_av1': fsm_counts_df['cum_avg_interference_duration']
         }
 
@@ -144,12 +151,13 @@ class IntraExpWallInterferenceRate():
 
 
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraExpRobotInterferenceRate():
+class IntraExp_RobotInterferenceRate_NRobots():
     r"""
     Models the steady state inter-robot interference rate of a swarm of :math:`\mathcal{N}`
-    robots. Robots are in 1 of 3 states via their FSM: exploring, homing, or avoiding collision,
-    which we model as a queueing network, in which robots enter the interference queue when sense a
-    nearby they sense a nearby wall, and exit it sometime later. We know:
+    CRW robots. Robots are in 1 of 4 states via their FSM: exploring, homing, or avoiding collision
+    while avoiding/homing, which we model as a queueing network, in which robots enter the
+    interference queue when sense a nearby they sense a nearby wall, and exit it sometime later. We
+    know:
 
     - The average amount of time a robot spends in the interference queue from empirical data.
     - The average number of robots in the interference queue from empirical data.
@@ -160,15 +168,20 @@ class IntraExpRobotInterferenceRate():
     This model has a `:meth:`kernel()` function which computes the calculation, enabling this
     model to be used as a building block without necessarily needing to be :meth:`run()`.
 
+    .. IMPORTANT::
+       :method:`run`() currently reads the following from experimental data:
+
+       - :math:`\tau_{av}^N`
+       - :math:`\tau_{ca}^N`
+
     From :xref:`Harwell2021a`.
 
     """
     @staticmethod
-    def kernel(int_count1: tp.Union[pd.DataFrame, float],
+    def kernel(N_av1: tp.Union[pd.DataFrame, float],
                tau_av1: tp.Union[pd.DataFrame, float],
-               int_countN: tp.Union[pd.DataFrame, float],
-               tau_avN: tp.Union[pd.DataFrame, float],
-               n_robots: int) -> tp.Union[pd.DataFrame, float]:
+               N_avN: tp.Union[pd.DataFrame, float],
+               tau_avN: tp.Union[pd.DataFrame, float]):
         r"""
         Perform the interference rate calculation using Little's Law, modeling CRW robots
         entering/exiting an interference avoidance state using a two state queueing network: robots
@@ -179,49 +192,46 @@ class IntraExpRobotInterferenceRate():
         linear factor.
 
         .. math::
-           \alpha_{r} = \frac{\tau_{av}}{\mathcal{N}_{av}(t)} - \alpha_{r}^1\mathcal{N}.
+           \alpha_{ca}^N = \frac{\tau_{av}}{\mathcal{N}_{av}(t)} - \alpha_{ca}^1\mathcal{N}_{av}(t)
 
         Args:
-            int_count1: Fraction of robots in a swarm of size 1 which are experiencing interference
-                        at time :math:`t`: :math:`\mathcal{N}_{av}(t)`.
+            N_av1: Fraction of robots in a swarm of size 1 which are experiencing interference
+                   at time :math:`t`: :math:`\mathcal{N}_{av}(t)`.
 
             tau_av1: Average time each robot in a swarm of size 1 spends in the interference queue
                      beginning at time :math:`t`: :math:`\tau_{av}^1`.
 
-            int_countN: Number of robots in a swarm of size :math:`\mathcal{N}` which are
-                        experiencing interference at time :math:`t`: :math:`\mathcal{N}_{av}(t)`.
+            N_avN: Number of robots in a swarm of size :math:`\mathcal{N}` which are
+                   experiencing interference at time :math:`t`: :math:`\mathcal{N}_{av}(t)`.
 
             tau_avN: Average time each robot in a swarm of size :math:`\mathcal{N}` spends in the
                      interference state beginning at time :math:`t`: :math:`\tau_{av}`.
 
-            n_robots: The number of robots in the swarm.
-
         Returns:
             Estimate of the steady state rate of robots from a swarm of :math:`\mathcal{N}` robots
-            entering the interference queue, :math:`\alpha_{r}`.
+            entering the interference queue, :math:`\alpha_{ca}^N`.
 
         """
-        alpha_r1 = IntraExpWallInterferenceRate.kernel(int_count1, tau_av1)
+        alpha_ca1 = IntraExp_WallInterferenceRate_1Robot.kernel(N_av1=N_av1, tau_av1=tau_av1)
 
         # All robots can enter the avoidance queue, so we don't need to modify lambda according to
         # the # of contributing robots.
-        return int_countN / tau_avN - alpha_r1 * int_countN
+        return N_avN / tau_avN - alpha_ca1 * N_avN
 
     @staticmethod
     def calc_kernel_args(criteria: bc.IConcreteBatchCriteria,
                          exp_num: int,
                          cmdopts: dict) -> tp.Dict[str, pd.DataFrame]:
         # Calculate kernel args for the 1 robot case
-        kargs = IntraExpWallInterferenceRate.calc_kernel_args(cmdopts['exp0_avgd_root'])
+        kargs = IntraExp_WallInterferenceRate_1Robot.calc_kernel_args(cmdopts['exp0_avgd_root'])
 
         # Add additional args for N robot case
         resultN_opath = os.path.join(cmdopts['exp_avgd_root'])
         fsm_countsN_df = core.utils.pd_csv_read(os.path.join(resultN_opath,
                                                              'fsm-interference-counts.csv'))
 
-        kargs['int_countN'] = fsm_countsN_df['cum_avg_exp_interference']
+        kargs['N_avN'] = fsm_countsN_df['cum_avg_exp_interference']
         kargs['tau_avN'] = fsm_countsN_df['cum_avg_interference_duration']
-        kargs['n_robots'] = criteria.populations(cmdopts)[exp_num]
 
         return kargs
 
@@ -263,7 +273,7 @@ class IntraExpRobotInterferenceRate():
 
 
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraExpRobotInterferenceTime():
+class IntraExp_RobotInterferenceTime_NRobots():
     r"""
     Models the steady state time a robot in a swarm of size :math:`\mathcal{N}` spends avoiding
     interference from other robots.  Uses Little's Law and
@@ -276,54 +286,53 @@ class IntraExpRobotInterferenceTime():
 
     """
     @staticmethod
-    def kernel(int_count1: tp.Union[pd.DataFrame, float],
+    def kernel(N_av1: tp.Union[pd.DataFrame, float],
                tau_av1: tp.Union[pd.DataFrame, float],
-               int_countN: tp.Union[pd.DataFrame, float],
+               N_avN: tp.Union[pd.DataFrame, float],
                tau_avN: tp.Union[pd.DataFrame, float],
-               n_robots: int) -> tp.Union[pd.DataFrame, float]:
+               N: int) -> tp.Union[pd.DataFrame, float]:
         r"""Perform the interference time calculation.
 
         .. math::
            \tau_{av} = \big[\alpha_{r} + \alpha_{r}^1\mathcal{N}\big]\mathcal{N}_{av}(t).
 
         Args:
-            int_count1: Fraction of robots in a swarm of size 1 which are experiencing interference
-                        at time :math:`t`: :math:`\mathcal{N}_{av}(t)`.
+            N_av1: Fraction of robots in a swarm of size 1 which are experiencing interference
+                   at time :math:`t`: :math:`\mathcal{N}_{av}(t)`.
 
             tau_av1: Average time each robot in a swarm of size 1 spends in the interference state
                      beginning at time :math:`t`: :math:`\tau_{av}^1`.
 
-            int_countN: Number of robots in a swarm of size :math:`\mathcal{N}` which are
-                        experiencing interference at time :math:`t`: :math:`\mathcal{N}_{av}(t)`.
+            N_avN: Number of robots in a swarm of size :math:`\mathcal{N}` which are
+                   experiencing interference at time :math:`t`: :math:`\mathcal{N}_{av}(t)`.
 
             tau_avN: Average time each robot in a swarm of size :math:`\mathcal{N}` spends in the
                      interference state beginning at time :math:`t`: :math:`\tau_{av}`.
 
-            n_robots: The number of robots in the swarm.
-
         Returns:
             Estimate of the steady state time robots from a swarm of :math:`\mathcal{N}` spend in
-            the interference queue, :math:`\tau_{av}`.
+            the interference queue, :math:`\tau_{av}^N`.
 
         """
-        alpha_r1 = IntraExpWallInterferenceRate.kernel(int_count1, tau_av1)
-        alpha_rN = IntraExpRobotInterferenceRate.kernel(int_count1,
-                                                        tau_av1,
-                                                        int_countN,
-                                                        tau_avN,
-                                                        n_robots)
+        alpha_ca1 = IntraExp_WallInterferenceRate_1Robot.kernel(N_av1=N_av1, tau_av1=tau_av1)
+        alpha_caN = IntraExp_RobotInterferenceRate_NRobots.kernel(N_av1=N_av1,
+                                                                  tau_av1=tau_av1,
+                                                                  N_avN=N_avN,
+                                                                  tau_avN=tau_avN)
         # All robots can enter the avoidance queue, so we don't need to modify lambda according to
         # the # of contributing robots.
-        if n_robots == 1:
-            return int_count1 / alpha_r1
+        if N == 1:
+            return N_av1 / alpha_ca1
         else:
-            return int_countN / (alpha_rN + alpha_r1 * int_countN)
+            return N_avN / (alpha_caN + alpha_ca1 * N_avN)
 
     @staticmethod
     def calc_kernel_args(criteria: bc.IConcreteBatchCriteria,
                          exp_num: int,
                          cmdopts: dict) -> tp.Dict[str, pd.DataFrame]:
-        return IntraExpRobotInterferenceRate.calc_kernel_args(criteria, exp_num, cmdopts)
+        kargs = IntraExp_RobotInterferenceRate_NRobots.calc_kernel_args(criteria, exp_num, cmdopts)
+        kargs['N'] = criteria.populations(cmdopts)[exp_num]
+        return kargs
 
     def __init__(self, main_config: dict, config: dict):
         self.main_config = main_config
@@ -333,7 +342,7 @@ class IntraExpRobotInterferenceTime():
         return True
 
     def target_csv_stems(self) -> tp.List[str]:
-        return ['fsm-interference-counts']
+        return ['fsm-interference-duration']
 
     def legend_names(self) -> tp.List[str]:
         return ['Predicted Interference Time']
@@ -367,7 +376,7 @@ class IntraExpRobotInterferenceTime():
 
 
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpRobotInterferenceRate():
+class InterExp_RobotInterferenceRate_NRobots():
     r"""
     Models the rate at which a swarm experiences inter-robot interference during foraging across all
     experiments in the batch. That is, one model datapoint is computed for each experiment within
@@ -420,17 +429,17 @@ class InterExpRobotInterferenceRate():
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
             # Model only targets one graph
-            intra_df = IntraExpRobotInterferenceRate(self.main_config,
-                                                     self.config).run(criteria,
-                                                                      i,
-                                                                      cmdopts2)[0]
+            intra_df = IntraExp_RobotInterferenceRate_NRobots(self.main_config,
+                                                              self.config).run(criteria,
+                                                                               i,
+                                                                               cmdopts2)[0]
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
 
         return [res_df]
 
 
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpRobotInterferenceTime():
+class InterExp_RobotInterferenceTime_NRobots():
     r"""
     Models the steady state average time robots from a swarm of size :math:`\mathcal{N}` spend in
     the interference queue during foraging across all experiments in the batch. That is, one model
@@ -447,7 +456,7 @@ class InterExpRobotInterferenceTime():
         self.config = config
 
     def run_for_batch(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict) -> bool:
-        return any([p > 1 for p in criteria.populations(cmdopts)])
+        return True
 
     def target_csv_stems(self) -> tp.List[str]:
         return ['interference-duration-cum-avg']
@@ -482,10 +491,10 @@ class InterExpRobotInterferenceTime():
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
             # Model only targets one graph
-            intra_df = IntraExpRobotInterferenceTime(self.main_config,
-                                                     self.config).run(criteria,
-                                                                      i,
-                                                                      cmdopts2)[0]
+            intra_df = IntraExp_RobotInterferenceTime_NRobots(self.main_config,
+                                                              self.config).run(criteria,
+                                                                               i,
+                                                                               cmdopts2)[0]
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
 
         return [res_df]

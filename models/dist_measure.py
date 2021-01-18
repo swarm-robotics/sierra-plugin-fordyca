@@ -48,7 +48,6 @@ class DistanceMeasure2D():
             # https://math.stackexchange.com/questions/15580/what-is-average-distance-from-center-of-square-to-some-point
             edge = nest.extent.xsize() / 2.0
             self.nest_factor = edge / 6.0 * (math.sqrt(2.0) + math.log(1 + math.sqrt(2.0)))
-
         elif 'SS' in self.scenario:
             res, _ = si.nquad(lambda x, y: (self.nest.extent.center - Vector3D(x, y)).length(),
                               [[self.nest.extent.center.x,

@@ -21,6 +21,7 @@ Free block acquisition and block collection models for the FORDYCA project.
 import os
 import copy
 import typing as tp
+import math
 
 # 3rd party packages
 import implements
@@ -29,23 +30,23 @@ import pandas as pd
 # Project packages
 import core.models.interface
 import core.utils
+import core.variables.time_setup as ts
 from core.experiment_spec import ExperimentSpec
 import projects.fordyca.models.representation as rep
 import core.variables.batch_criteria as bc
 from core.vector import Vector3D
 
 from projects.fordyca.models.density import BlockAcqDensity
-from projects.fordyca.models.model_error import Model2DError
 from projects.fordyca.models.dist_measure import DistanceMeasure2D
-from projects.fordyca.models.homing_time import IntraExpNestHomingTimeNRobots
+import projects.fordyca.models.diffusion as diffusion
 
 
 def available_models(category: str):
     if category == 'intra':
-        return ['IntraExpAcqRate', 'IntraExpCollectionRate']
+        return ['IntraExp_AcqRate_NRobots', 'IntraExp_BlockCollectionRate_NRobots']
     elif category == 'inter':
-        return ['InterExpCollectionRate',
-                'InterExpAcqRate']
+        return ['InterExp_BlockCollectionRate_NRobots',
+                'InterExp_AcqRate_NRobots']
     else:
         return None
 
@@ -55,78 +56,17 @@ def available_models(category: str):
 
 
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraExpAcqRate():
+class IntraExp_BlockAcqRate_NRobots():
     """
-    Models the steady state block acquisition rate of the swarm, assuming purely reactive
-    robots. Robots are in 1 of 3 states via their FSM: exploring, homing, or avoiding collision,
-    which we model as a queueing network, in which robots enter the homing queue when they
-    pick up a block, and exit it when they drop the block in the nest. We know:
+    Models the steady state block acquisition rate of a swarm of N CRW robots.
 
-    - The average amount of time a robot spends in the homing queue
-      (:class:`IntraExpNestHomingTimeNRobots`).
-    - The average number of robots in the homing queue from empirical data.
+    .. IMPORTANT::
+       This model does not have a kernel() function which computes the calculation, because
+       it does not require ANY experimental data, and can be computed from first principles, so it
+       is always OK to :method:`run()` it.
 
-    From this, we can use Little's Law to compute the arrival rate, which is the block acquisition
-    rate.
+    From :xref:`Harwell2021a`.
     """
-
-    @staticmethod
-    def kernel(exp_countN: tp.Union[pd.DataFrame, float],
-               tau_hN: tp.Union[pd.DataFrame, float],
-               n_robots: int) -> tp.Union[pd.DataFrame, float]:
-        r"""
-        Perform the block acquisition rate calculation using Little's Law, modeling CRW robots
-        entering/exiting the homing state using a two state queueing network:
-        robots are either homing or searching, with interference avoidance treated as part of
-        each of those states.
-
-        .. math::
-           \alpha_{b}^1 = \frac{\tau_{h}}{\mathcal{N}_{h}(t)}
-
-        Args:
-            exp_countN: Number of robots in the swarm which are searching at time :math:`t`:
-                        :math:`\mathcal{N}_{s}(t)`.
-
-            int_count1: Number of robots in a swarm of size 1 which are experiencing interference at
-                        time :math:`t`: :math:`\mathcal{N}_{av}(t)`.
-
-            tau_hN: Average time each robot spends in the homing queue beginning at time
-                    :math:`t`: :math:`\tau_{h}`.
-
-        Returns:
-            Estimate of the steady state rate of robots entering the homing queue,
-            :math:`\alpha_{b}`.
-        """
-        homing_count = (n_robots - exp_countN)
-
-        return homing_count / tau_hN
-
-    @staticmethod
-    def calc_kernel_args(criteria:  bc.IConcreteBatchCriteria,
-                         exp_num: int,
-                         cmdopts: dict,
-                         main_config: dict):
-        # Calculate homing_time kernel args
-        kargs1 = IntraExpNestHomingTimeNRobots.calc_kernel_args(criteria,
-                                                                exp_num,
-                                                                cmdopts,
-                                                                main_config)
-
-        # Run kernel to get tau_hN
-        tau_hN = IntraExpNestHomingTimeNRobots.kernel(**kargs1)['model']
-        acq_counts_df = core.utils.pd_csv_read(os.path.join(cmdopts['exp_avgd_root'],
-                                                            'block-acq-counts.csv'))
-
-        # We read these fractions directly from experimental data for the purposes of getting the
-        # model correct. In the parent ODE model, these will be variables.
-        exp_count = acq_counts_df['cum_avg_true_exploring_for_goal'] + \
-            acq_counts_df['cum_avg_false_exploring_for_goal']
-
-        return {
-            'exp_countN': exp_count,
-            'tau_hN': tau_hN,
-            'n_robots': kargs1['n_robots'],
-        }
 
     def __init__(self, main_config: dict, config: dict) -> None:
         self.main_config = main_config
@@ -150,29 +90,71 @@ class IntraExpAcqRate():
             cmdopts: dict) -> tp.List[pd.DataFrame]:
 
         result_opath = os.path.join(cmdopts['exp_avgd_root'])
+
+        # We calculate per-sim, rather than using the averaged block cluster results, because for
+        # power law distributions different simulations have different cluster locations, which
+        # affects the distribution via locality.
+        #
+        # For all other block distributions, we can operate on the averaged results, because the
+        # position of block clusters is the same in all simulations.
+        if 'PL' in cmdopts['scenario']:
+            result_opaths = [os.path.join(cmdopts['exp_output_root'],
+                                          d,
+                                          self.main_config['sim']['sim_metrics_leaf'])
+                             for d in os.listdir(cmdopts['exp_output_root']) if
+                             self.main_config['sierra']['avg_output_leaf'] not in d]
+        else:
+            result_opaths = [os.path.join(cmdopts['exp_avgd_root'])]
+
+        nest = rep.Nest(cmdopts, criteria, exp_num)
+
+        dist = 0.0
+        for result in result_opaths:
+            dist += ExpectedAcqDist()(cmdopts, result, nest)
+
+        # Average our results
+        avg_acq_dist = dist / len(result_opaths)
+        n_robots = criteria.populations(cmdopts)[exp_num]
+
+        alpha_b = self._kernel(N=n_robots,
+                               wander_speed=float(self.config['wander_mean_speed']),
+                               avg_acq_dist=avg_acq_dist)
+
         rate_df = core.utils.pd_csv_read(os.path.join(result_opath, 'block-manipulation.csv'))
 
         # We calculate 1 data point for each interval
         res_df = pd.DataFrame(columns=['model'], index=rate_df.index)
-        kargs = self.calc_kernel_args(criteria, exp_num, cmdopts, self.main_config)
-        res_df['model'] = self.kernel(**kargs)
+        res_df['model'] = alpha_b
 
         # All done!
         return [res_df]
 
+    @staticmethod
+    def _kernel(N: float, wander_speed: float, avg_acq_dist: float) -> float:
+        """
+        Calculates the CRW Diffusion constant in :xref:`Harwell2021a` for bounded arena geometry,
+        inspired by the results in :xref:`Codling2010`.
+        """
+        D = diffusion.calc_crwD(N, wander_speed)
+
+        # diffusion time = (diffusion dist) ^2 / (2 * D)
+        diff_time = avg_acq_dist ** 2 / (2 * D)
+
+        # Inverse of diffusion time from nest to expected acquisition location is alpha_b
+        return 1.0 / diff_time
+
 
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraExpCollectionRate():
+class IntraExp_BlockCollectionRate_NRobots():
     """
-    Models the steady state block collection rate :math:`L_{b}` of the swarm using Little's law and
-    :class:`IntraExpBlockAcqRate`. Makes the following assumptions:
+    Models the steady state block collection rate :math:`L_{b}` of the swarm of CRW robots using
+    Little's law and :class:`IntraExp_BlockAcqRate_NRobots`. Makes the following assumptions:
 
     - The reported homing time includes a non-negative penalty :math:`\mu_{b}` assessed in the nest
       which robots must serve before collection can complete. This models physical time taken to
       actually drop the block, and other environmental factors.
 
     - At most 1 robot can drop an object per-timestep (i.e. an M/M/1 queue).
-
     """
 
     @staticmethod
@@ -260,10 +242,14 @@ class IntraExpCollectionRate():
 
 
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpAcqRate():
+class InterExp_BlockAcqRate_NRobots():
     """
     Models the steady state block acquisition rate of the swarm, assuming purely reactive robots.
     That is, one model datapoint is computed for each experiment within the batch.
+
+    .. IMPORTANT::
+       This model does not have a kernel() function which computes the calculation, because
+       it is a summary model, built on simpler intra-experiment models.
     """
 
     def __init__(self, main_config: dict, config: dict):
@@ -307,10 +293,10 @@ class InterExpAcqRate():
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
             # Model only targets a single graph
-            intra_df = IntraExpAcqRate(self.main_config,
-                                       self.config).run(criteria,
-                                                        i,
-                                                        cmdopts2)[0]
+            intra_df = IntraExp_BlockAcqRate_NRobots(self.main_config,
+                                                     self.config).run(criteria,
+                                                                      i,
+                                                                      cmdopts2)[0]
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
 
         # All done!
@@ -318,10 +304,14 @@ class InterExpAcqRate():
 
 
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpCollectionRate():
+class InterExp_BlockCollectionRate_NRobots():
     """
-    Models the steady state block collection rate of the swarm, assuming purely reactive robots.
-    That is, one model datapoint is computed for each experiment within the batch.
+    Models the steady state block collection rate of the CRW swarm.
+
+    .. IMPORTANT::
+       This model does not have a kernel() function which computes the calculation, because
+       it is a summary model, built on simpler intra-experiment models.
+
     """
 
     def __init__(self, main_config: dict, config: dict):
@@ -365,11 +355,52 @@ class InterExpCollectionRate():
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
             # Model only targets a single graph
-            intra_df = IntraExpCollectionRate(self.main_config,
-                                              self.config).run(criteria,
-                                                               i,
-                                                               cmdopts2)[0]
+            intra_df = IntraExp_BlockCollectionRate_NRobots(self.main_config,
+                                                            self.config).run(criteria,
+                                                                             i,
+                                                                             cmdopts2)[0]
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
 
         # All done!
         return [res_df]
+
+################################################################################
+# Helper Classes
+################################################################################
+
+
+class ExpectedAcqDist():
+    def __call__(self, cmdopts: dict, result_opath: str, nest: rep.Nest) -> float:
+
+        # Get clusters in the arena
+        clusters = rep.BlockClusterSet(cmdopts, nest, result_opath)
+
+        # Integrate to find average distance from nest to all clusters, weighted by acquisition
+        # density.
+        dist = 0.0
+        for cluster in clusters:
+            dist += self._nest_to_cluster(cluster, nest, cmdopts['scenario'])
+
+        return dist / len(clusters)
+
+    def _nest_to_cluster(self,
+                         cluster: rep.BlockCluster,
+                         nest: core.utils.ArenaExtent,
+                         scenario: str) -> float:
+        dist_measure = DistanceMeasure2D(scenario, nest=nest)
+
+        density = BlockAcqDensity(nest=nest, cluster=cluster, dist_measure=dist_measure)
+
+        # Compute expected value of X coordinate of average distance from nest to acquisition
+        # location.
+        ll = cluster.extent.ll
+        ur = cluster.extent.ur
+        evx = density.evx_for_region(ll=ll, ur=ur)
+
+        # Compute expected value of Y coordinate of average distance from nest to acquisition
+        # location.
+        evy = density.evy_for_region(ll=ll, ur=ur)
+
+        # Compute expected distance from nest to block acquisitions
+        dist = dist_measure.to_nest(Vector3D(evx, evy))
+        return dist

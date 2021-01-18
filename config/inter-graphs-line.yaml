@@ -99,7 +99,6 @@ LN_block_trans:
       title: 'Average Block Transport Time (Cumulative)'
       xlabel: 'Interval'
       ylabel: '# Timesteps'
-      batch: True
 
     - src_stem: block-transportee
       dest_stem: block-transport-initial-wait-time-int-avg
@@ -116,16 +115,16 @@ LN_block_trans:
       ylabel: '# Robots'
 
     - src_stem: block-transporter
-      dest_stem: block-transport-phototaxis-int-avg
+      dest_stem: block-transporter-homing-nest-int-avg
       col: int_avg_phototaxiing_to_goal
-      title: 'Average # Robots Phototaxiing to Goal (Interval)'
+      title: 'Average # Robots Homing (Interval)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
     - src_stem: block-transporter
-      dest_stem: block-transport-phototaxis-cum-avg
+      dest_stem: block-transport-homing-nest-cum-avg
       col: cum_avg_phototaxiing_to_goal
-      title: 'Average # Robots Phototaxiing to Goal (Cumulative)'
+      title: 'Average # Robots Homing (Cumulative)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 

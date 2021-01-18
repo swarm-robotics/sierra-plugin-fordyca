@@ -40,14 +40,16 @@ import core.perf_measures.common as cpmcommon
 import projects.fordyca.models.representation as rep
 from projects.fordyca.models.density import BlockAcqDensity
 from projects.fordyca.models.dist_measure import DistanceMeasure2D
-from projects.fordyca.models.blocks import IntraExpAcqRate
+from projects.fordyca.models.blocks import IntraExp_BlockAcqRate_NRobots
 
 
 def available_models(category: str):
     if category == 'intra':
         return []
     elif category == 'inter':
-        return ['InterExpRaw', 'InterExpScalability', 'InterExpSelfOrg']
+        return ['InterExp_RawPerf_NRobots',
+                'InterExp_Scalability_NRobots',
+                'InterExp_SelfOrg_NRobots']
     else:
         return None
 
@@ -62,7 +64,7 @@ def available_models(category: str):
 
 
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpRaw():
+class InterExp_RawPerf_NRobots():
     r"""
     Models the raw performances achieved by a swarm of :math:`\mathcal{N}` CRW robots.
     """
@@ -108,10 +110,10 @@ class InterExpRaw():
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
             # Model only targets a single graph
-            intra_df = IntraExpAcqRate(self.main_config,
-                                       self.config).run(criteria,
-                                                        i,
-                                                        cmdopts2)[0]
+            intra_df = IntraExp_BlockAcqRate_NRobots(self.main_config,
+                                                     self.config).run(criteria,
+                                                                      i,
+                                                                      cmdopts2)[0]
 
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
 
@@ -120,11 +122,17 @@ class InterExpRaw():
 
 
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpScalability():
+class InterExp_Scalability_NRobots():
     r"""
     Models the scalability achieved by a swarm of :math:`\mathcal{N}` CRW robots via parallel
     fraction.
     """
+
+    @staticmethod
+    def kernel(criteria: bc.IConcreteBatchCriteria,
+               cmdopts: dict,
+               perf_df: pd.DataFrame) -> pd.DataFrame:
+        return ParallelFractionUnivar.df_kernel(criteria, cmdopts, perf_df)
 
     def __init__(self, main_config: dict, config: dict):
         self.main_config = main_config
@@ -146,21 +154,33 @@ class InterExpScalability():
             criteria: bc.IConcreteBatchCriteria,
             cmdopts: dict) -> tp.List[pd.DataFrame]:
 
-        perf_df = InterExpRaw(self.main_config, self.config).run(criteria,
-                                                                 cmdopts)[0]
+        perf_df = InterExp_RawPerf_NRobots(self.main_config, self.config).run(criteria,
+                                                                              cmdopts)[0]
 
-        sc_df = ParallelFractionUnivar.df_kernel(criteria, cmdopts, perf_df)
+        sc_df = self.kernel(criteria, cmdopts, perf_df)
 
         # All done!
         return [sc_df]
 
 
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpSelfOrg():
+class InterExp_SelfOrg_NRobots():
     r"""
     Models the emergent self-organization achieved by a swarm of :math:`\mathcal{N}` CRW robots via
     marginal fractional losses.
     """
+
+    @staticmethod
+    def kernel(criteria: bc.IConcreteBatchCriteria,
+               cmdopts: dict,
+               perf_df: pd.DataFrame,
+               N_av: pd.DataFrame) -> pd.DataFrame:
+        plostN = cpmcommon.PerfLostInteractiveSwarmUnivar.df_kernel(criteria,
+                                                                    cmdopts,
+                                                                    N_av,
+                                                                    perf_df)
+        fl = cpmcommon.FractionalLossesUnivar.df_kernel(perf_df, plostN)
+        return FLMarginalUnivar.df_kernel(criteria, cmdopts, fl)
 
     def __init__(self, main_config: dict, config: dict):
         self.main_config = main_config
@@ -182,18 +202,13 @@ class InterExpSelfOrg():
             criteria: bc.IConcreteBatchCriteria,
             cmdopts: dict) -> tp.List[pd.DataFrame]:
 
-        perf_df = InterExpRaw(self.main_config, self.config).run(criteria,
-                                                                 cmdopts)[0]
+        perf_df = InterExp_RawPerf_NRobots(self.main_config, self.config).run(criteria,
+                                                                              cmdopts)[0]
 
         int_count_ipath = os.path.join(cmdopts["batch_collate_root"],
                                        self.main_config['perf']['interference_count_csv'])
         interference_df = core.utils.pd_csv_read(int_count_ipath)
-        plostN = cpmcommon.PerfLostInteractiveSwarmUnivar.df_kernel(criteria,
-                                                                    cmdopts,
-                                                                    interference_df,
-                                                                    perf_df)
-        fl = cpmcommon.FractionalLossesUnivar.df_kernel(perf_df, plostN)
-        so_df = FLMarginalUnivar.df_kernel(criteria, cmdopts, fl)
+        so_df = self.kernel(criteria, cmdopts, perf_df, interference_df)
 
         # All done!
         return [so_df]

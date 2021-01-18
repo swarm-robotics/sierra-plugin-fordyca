@@ -53,6 +53,7 @@ class BlockCluster():
 
     def __init__(self, ll: Vector3D, ur: Vector3D, cluster_id: int, avg_blocks: float) -> None:
         self.extent = ArenaExtent.from_corners(ll=ll, ur=ur)
+        self.cluster_id = cluster_id
         self.avg_blocks = avg_blocks
 
 
@@ -86,7 +87,6 @@ class BlockClusterSet():
     """
 
     def __init__(self,
-                 main_config: dict,
                  cmdopts: dict,
                  nest: Nest,
                  sim_opath: str) -> None:
