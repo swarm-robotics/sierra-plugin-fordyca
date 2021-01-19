@@ -24,13 +24,13 @@ perf:
   # raw_perf_ylabel: 'Timesteps'
 
   intra_perf_csv: 'block-transportee.csv'
-  intra_perf_col: 'cum_avg_transported'
-  inter_perf_csv: 'blocks-transported-cum-avg.csv'
-  raw_perf_title: 'Blocks Transported (Cumulative Average)'
+  intra_perf_col: 'int_avg_transported'
+  inter_perf_csv: 'blocks-transported-int-avg.csv'
+  raw_perf_title: 'Blocks Transported (Interval Average)'
   raw_perf_ylabel: '# Blocks'
 
-  interference_count_csv: 'interference-in-cum-avg.csv'
-  interference_duration_csv: 'interference-duration-cum-avg.csv'
+  interference_count_csv: 'interference-in-int-avg.csv'
+  interference_duration_csv: 'interference-duration-int-avg.csv'
   tv_environment_csv: 'tv-environment.csv'
   tv_population_csv: 'tv-population.csv'
 

@@ -37,15 +37,16 @@ from core.vector import Vector3D
 import projects.fordyca.models.representation as rep
 from projects.fordyca.models.density import BlockAcqDensity
 from projects.fordyca.models.dist_measure import DistanceMeasure2D
-from projects.fordyca.models.interference import IntraExpRobotInterferenceRate, IntraExpRobotInterferenceTime
+from projects.fordyca.models.interference import IntraExp_RobotInterferenceRate_NRobots, IntraExp_RobotInterferenceTime_NRobots
 from projects.fordyca.models.blocks import ExpectedAcqDist
 
 
 def available_models(category: str):
     if category == 'intra':
-        return ['IntraExpNestHomingTime1Robot']
+        return ['IntraExp_HomingTime_1Robot']
     elif category == 'inter':
-        return ['InterExpNestHomingTime1Robot', 'InterExpNestHomingTimeNRobots']
+        return ['InterExp_HomingTime_1Robot',
+                'InterExp_HomingTime_NRobots']
     else:
         return None
 
@@ -55,18 +56,17 @@ def available_models(category: str):
 ################################################################################
 
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraExpHomingTime1Robot():
+class IntraExp_HomingTime_1Robot():
     r"""
     Models the time it takes a robot in a swarm of size 1 to return to the nest after it has picked
-    up an object during foraging during a single experiment within a batch. That is, one model
-    datapoint is computed for each metric collection interval in each simulation.
+    up an object during foraging during a single experiment within a batch.
 
     Only runs for swarms with :math:`\mathcal{N}=1`.
 
     .. IMPORTANT::
-       This model does not have a kernel() function which computes the calculation, because it
-       is strictly dependent on arena geometry, block distribution, etc., and must be :meth:`run()`
-       to be used.
+       This model does not have a kernel() function which computes the calculation, because
+       it does not require ANY experimental data, and can be computed from first principles, so it
+       is always OK to :method:`run()` it.
 
     From :xref:`Harwell2021a`.
 
@@ -146,16 +146,11 @@ class IntraExpHomingTime1Robot():
 
 
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraExpHomingTimeNRobots():
+class IntraExp_HomingTime_NRobots():
     r"""
-    Models the time it takes a robot in a swarm of :math:`\mathcal{N}` robots to return to the nest
-    after it has picked up an object during foraging during a single experiment within a batch. That
-    is, one model datapoint is computed for each metric collection interval in each simulation.
-
-    .. IMPORTANT::
-       This model does not have a kernel() function which computes the calculation, because it
-       is strictly dependent on arena geometry, block distribution, etc., and must be :meth:`run()`
-       to be used.
+    Models the time it takes a robot in a swarm of :math:`\mathcal{N}` CRW robots to return to the
+    nest after it has picked up an object during foraging during a single experiment within a
+    batch.
 
     From :xref:`Harwell2021a`.
 
@@ -169,22 +164,22 @@ class IntraExpHomingTimeNRobots():
         Perform the homing time calculation.
 
         .. math::
-           \tau_h = \tau_{h}^1\big[1 + \frac{\alpha_ca\tau_{av}}{\mathcal{N}}\big]
+           \tau_h^N = \tau_{h}^1\big[1 + \frac{\alpha_{ca}^1\tau_{av}}{\mathcal{N}}\big]
 
         Args:
             tau_h1: Homing time of robots in the swarm at time :math:`t`: :math:`\tau_{h}^1`.
 
-            alpha_caN: Robot encounter rate of robots in the swarm at time :math:`t`:
-                      :math:`\alpha_{r}`.
+            alpha_caNN: Robot encounter rate of robots in the swarm at time :math:`t`:
+                        :math:`\alpha_{ca}^N`.
 
             tau_avN: Average time each robot spends in the interference state beginning at time
-                     :math:`t`: :math:`\tau_{av}`.
+                     :math:`t`: :math:`\tau_{av}^N`.
 
             N: The number of robots in the swarm.
 
         Returns:
             Estimate of the steady state homing time for a swarm of :math:`\mathcal{N}` robots,
-            :math:`\tau_h`.
+            :math:`\tau_h^N`.
         """
         return tau_h1 * (1.0 + alpha_caN * tau_avN / N)
 
@@ -194,13 +189,13 @@ class IntraExpHomingTimeNRobots():
                          cmdopts: dict,
                          main_config: dict,
                          model_config: dict) -> dict:
-        homing1 = IntraExpHomingTime1Robot(main_config, model_config)
+        homing1 = IntraExp_HomingTime_1Robot(main_config, model_config)
         tau_h1 = homing1.run(criteria, exp_num, cmdopts)[0]
 
-        av_rateN = IntraExpRobotInterferenceRate(main_config, model_config)
+        av_rateN = IntraExp_RobotInterferenceRate_NRobots(main_config, model_config)
         alpha_caN = av_rateN.run(criteria, exp_num, cmdopts)[0]
 
-        av_timeN = IntraExpRobotInterferenceTime(main_config, model_config)
+        av_timeN = IntraExp_RobotInterferenceTime_NRobots(main_config, model_config)
         tau_avN = av_timeN.run(criteria, exp_num, cmdopts)[0]
 
         N = criteria.populations(cmdopts)[exp_num]
@@ -249,74 +244,11 @@ class IntraExpHomingTimeNRobots():
 # Inter-experiment models
 ################################################################################
 
-
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpHomingTime1Robot():
+class InterExp_HomingTime_NRobots():
     r"""
     Models the time it takes a robot to return to the nest after it has picked up an object during
-    foraging across all experiments in the batch. That is, one model datapoint is computed for
-    each experiment within the batch.
-
-    Only runs for swarms with :math:`\mathcal{N}=1`.
-
-    .. IMPORTANT::
-       This model does not have a kernel() function which computes the calculation, because
-       it is a summary model, built on simpler intra-experiment models.
-
-    From :xref:`Harwell2021a`.
-    """
-
-    def __init__(self, main_config: dict, config: dict) -> None:
-        self.main_config = main_config
-        self.config = config
-
-    def run_for_batch(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict) -> bool:
-        return all([p == 1 for p in criteria.populations(cmdopts)])
-
-    def target_csv_stems(self) -> tp.List[str]:
-        return ['block-transport-time-cum-avg']
-
-    def legend_names(self) -> tp.List[str]:
-        return ['Predicted Homing Time']
-
-    def __repr__(self) -> str:
-        return self.__class__.__name__
-
-    def run(self,
-            criteria: bc.IConcreteBatchCriteria,
-            cmdopts: dict) -> tp.List[pd.DataFrame]:
-        dirs = criteria.gen_exp_dirnames(cmdopts)
-        res_df = pd.DataFrame(columns=dirs, index=[0])
-
-        for i, exp in enumerate(dirs):
-            # Setup cmdopts for intra-experiment model
-            cmdopts2 = copy.deepcopy(cmdopts)
-            cmdopts2["exp_input_root"] = os.path.join(cmdopts['batch_input_root'], exp)
-            cmdopts2["exp_output_root"] = os.path.join(cmdopts['batch_output_root'], exp)
-            cmdopts2["exp_graph_root"] = os.path.join(cmdopts['batch_graph_root'], exp)
-            cmdopts2["exp_avgd_root"] = os.path.join(cmdopts2["exp_output_root"],
-                                                     self.main_config['sierra']['avg_output_leaf'])
-            cmdopts2["exp_model_root"] = os.path.join(cmdopts['batch_model_root'], exp)
-            core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
-
-            # Model only targets a single graph
-            intra_df = IntraExpHomingTime1Robot(self.main_config,
-                                                self.config).run(criteria,
-                                                                 i,
-                                                                 cmdopts2)[0]
-            # Last datapoint is the closest to the steady state value (presumably) so we select it
-            # to use as our prediction for the experiment within the batch.
-            res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
-
-        return [res_df]
-
-
-@implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpHomingTimeNRobots():
-    r"""
-    Models the time it takes a robot to return to the nest after it has picked up an object during
-    foraging across all experiments in the batch. That is, one model datapoint is computed for
-    each experiment within the batch.
+    foraging across all experiments in the batch.
 
     .. IMPORTANT::
        This model does not have a kernel() function which computes the calculation, because
@@ -364,10 +296,10 @@ class InterExpHomingTimeNRobots():
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
             # Model only targets a single graph
-            intra_df = IntraExpHomingTimeNRobots(self.main_config,
-                                                 self.config).run(criteria,
-                                                                  i,
-                                                                  cmdopts2)[0]
+            intra_df = IntraExp_HomingTime_NRobots(self.main_config,
+                                                   self.config).run(criteria,
+                                                                    i,
+                                                                    cmdopts2)[0]
             # Last datapoint is the closest to the steady state value (presumably) so we select it
             # to use as our prediction for the experiment within the batch.
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']

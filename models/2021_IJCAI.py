@@ -14,10 +14,12 @@
 #  You should have received a copy of the GNU General Public License along with
 #  SIERRA.  If not, see <http://www.gnu.org/licenses/
 
+r"""
+Models of the steady state collective foraging behavior of a swarm of :math:`\mathcal{N}` CRW
+robots. Used in the :xref:`Harwell2021a` paper.
+
 """
-Intra- and inter-experiment models for the time it takes a single robot to return to the nest after
-picking up an object.
-"""
+
 # Core packages
 import os
 import typing as tp
@@ -32,21 +34,24 @@ import pandas as pd
 import core.models.interface
 import core.utils
 import core.variables.batch_criteria as bc
-import projects.fordyca.models.representation as rep
-from projects.fordyca.models.interference import IntraExpRobotInterferenceRate, IntraExpWallInterferenceRate
-from projects.fordyca.models.homing_time import IntraExpHomingTimeNRobots, IntraExpHomingTime1Robot
-import projects.fordyca.models.ode_solver as ode
-from projects.fordyca.models.blocks import IntraExpAcqRate
 from core.experiment_spec import ExperimentSpec
 import core.variables.time_setup as ts
 from core.xml_luigi import XMLAttrChangeSet
 
+import projects.fordyca.models.representation as rep
+from projects.fordyca.models.interference import IntraExp_RobotInterferenceRate_NRobots, IntraExp_WallInterferenceRate_1Robot
+from projects.fordyca.models.homing_time import IntraExp_HomingTime_NRobots, IntraExp_HomingTime_1Robot
+import projects.fordyca.models.ode_solver as ode
+from projects.fordyca.models.blocks import IntraExp_BlockAcqRate_NRobots
+from projects.fordyca.models.perf_measures import InterExp_RawPerf_NRobots, InterExp_Scalability_NRobots, InterExp_SelfOrg_NRobots
+import projects.fordyca.models.diffusion as diffusion
+
 
 def available_models(category: str):
     if category == 'intra':
-        return ['IntraCRW_N_Robots']
+        return ['IntraExp_ODE_NRobots']
     elif category == 'inter':
-        return ['InterCRW_N_Robots']
+        return ['InterExp_ODEWrapper_NRobots']
     else:
         return None
 
@@ -55,8 +60,14 @@ def available_models(category: str):
 # Intra-experiment models
 ################################################################################
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraCRW_1_Robot():
+class IntraExp_ODE_1Robot():
     r"""
+    Calculates the following steady state quantities of a swarm of :math:`\mathcal{1}` foraging CRW
+    robots operating under SS,DS,RN,PL block distributions in the arena:
+
+    - :math:`\mathcal{N}_s` - Number of searching robots
+    - :math:`\mathcal{N}_{av}` - Number of robots avoiding collision
+    - :math:`\mathcal{N}_h` - Number of homing robots
     """
 
     def __init__(self, main_config: dict, config: dict):
@@ -82,13 +93,13 @@ class IntraCRW_1_Robot():
             exp_num: int,
             cmdopts: dict) -> tp.List[pd.DataFrame]:
 
-        model_params = self._calc_model_params(criteria, exp_num, cmdopts)
+        model_params = self._ode_params_calc(criteria, exp_num, cmdopts)
 
         nest = rep.Nest(cmdopts, criteria, exp_num)
         clusters = rep.BlockClusterSet(cmdopts, nest, cmdopts['exp0_avgd_root'])
         n_blocks = reduce(lambda accum, cluster: accum + cluster.avg_blocks, clusters, 0)
         z0 = {
-            'N_s0': model_params['N'],
+            'N_s0': 1,
             'N_h0': 0,
             'N_avh0': 0,
             'N_avs0': 0,
@@ -106,78 +117,57 @@ class IntraCRW_1_Robot():
 
         return [res_df['searching'], res_df['homing'], res_df['avoiding']]
 
-    def _calc_model_params(self,
-                           criteria: bc.IConcreteBatchCriteria,
-                           exp_num: int,
-                           cmdopts: dict) -> tp.Dict[str, float]:
-        """
-        Calculate parameters for :class`CRWSolver`: N, tau_h, tau_av, alpha_ca, alpha_b.
-
-        - N - # of robots in the swarm; direct simulation input parameter.
-
-        - T - Length of simulation in timesteps; direct simulation input parameter.
-
-        - n_datapoints - How many datapoints were taken during simultion;  direct simulation input
-          parameter.
-
-        - tau_h1 - Computed a priori using only arena geometry and block distribution information.
-
-        - tau_av1 - Currently read from experiment data, though it should eventually be computed
-          via a model.
-
-        - alpha_ca1 - Currently computed from experiment data, though it should eventually be
-          computed via a model.
-
-        - alpha_b - Currently computed from experiment data, though it CAN and WILL be replaced
-          with a biased random walk/diffusion calculation soon.
-        """
-        print("--------------------------------------------------------------------------------")
-        print("Start ODE_1_robot param calc, exp_num=", exp_num)
-        print("--------------------------------------------------------------------------------")
-
+    def _ode_params_calc(self,
+                         criteria: bc.IConcreteBatchCriteria,
+                         exp_num: int,
+                         cmdopts: dict) -> tp.Dict[str, float]:
         fsm_counts_df = core.utils.pd_csv_read(os.path.join(cmdopts['exp0_avgd_root'],
                                                             'fsm-interference-counts.csv'))
 
-        tau_av1 = fsm_counts_df['cum_avg_interference_duration'].iloc[-1]
-
-        n_robots = criteria.populations(cmdopts)[0]
-        tau_h = IntraExpHomingTime1Robot(self.main_config, self.config).run(criteria,
-                                                                            0,
-                                                                            cmdopts)[0]
-
-        alpha_ca1 = IntraExpWallInterferenceRate(self.main_config, self.config).run(criteria,
-                                                                                    0,
-                                                                                    cmdopts)[0]
-
-        alpha_b = IntraExpAcqRate(self.main_config, self.config).run(criteria,
-                                                                     0,
-                                                                     cmdopts)[0]
-
+        # T,n_datapoints are directly from simulation inputs
         spec = ExperimentSpec(criteria, exp_num, cmdopts)
-
         T_in_secs = ts.TimeSetup.extract_explen(XMLAttrChangeSet.unpickle(spec.exp_def_fpath))
         T = T_in_secs * ts.kTICKS_PER_SECOND
 
-        params = {
-            'N': n_robots,
+        n_datapoints = len(fsm_counts_df.index)
+
+        # This is OK to read from experimental data, per the paper.
+        tau_av1 = fsm_counts_df['int_avg_interference_duration'].iloc[-1]
+
+        # tau_h, alpha_b are computed directly from simulation inputs/configuration, so we can run()
+        # them here.
+        tau_h = IntraExp_HomingTime_1Robot(self.main_config, self.config).run(criteria,
+                                                                              exp_num,
+                                                                              cmdopts)[0]
+
+        alpha_b = IntraExp_BlockAcqRate_NRobots(self.main_config, self.config).run(criteria,
+                                                                                   exp_num,
+                                                                                   cmdopts)[0]
+
+        # FIXME: This currently reads alpha_ca1 from experimental data
+        alpha_ca1 = IntraExp_WallInterferenceRate_1Robot(self.main_config, self.config).run(criteria,
+                                                                                            exp_num,
+                                                                                            cmdopts)[0]
+        return {
+            'N': 1,
             'T': T,
             'tau_av1': tau_av1,
             'tau_h1': tau_h['model'].iloc[-1],
             'alpha_b0': alpha_b['model'].iloc[-1],
             'alpha_ca1': alpha_ca1['model'].iloc[-1],
-            'n_datapoints': len(fsm_counts_df.index)
+            'n_datapoints': n_datapoints
         }
-
-        print("--------------------------------------------------------------------------------")
-        print("Calculated ODE_1_robot params:")
-        print(params)
-        print("--------------------------------------------------------------------------------")
-        return params
 
 
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraCRW_N_Robots():
+class IntraExp_ODE_NRobots():
     r"""
+    Calculates the following steady state quantities of a swarm of :math:`\mathcal{N}` foraging CRW
+    robots operating under SS,DS,RN,PL block distributions in the arena:
+
+    - :math:`\mathcal{N}_s` - Number of searching robots
+    - :math:`\mathcal{N}_{av}` - Number of robots avoiding collision
+    - :math:`\mathcal{N}_h` - Number of homing robots
     """
 
     def __init__(self, main_config: dict, config: dict):
@@ -205,14 +195,14 @@ class IntraCRW_N_Robots():
 
         n_robots = criteria.populations(cmdopts)[exp_num]
 
-        model1_robot = IntraCRW_1_Robot(self.main_config, self.config)
-        print(criteria.populations(cmdopts), exp_num)
-        if n_robots == 1:
-            return model1_robot.run(criteria, 1, cmdopts)
+        model1_robot = IntraExp_ODE_1Robot(self.main_config, self.config)
 
-        model_params = model1_robot._calc_model_params(criteria, 1, cmdopts)
-        model_params.update(self._calc_model_params(criteria, exp_num, cmdopts))
-        print(model_params)
+        if n_robots == 1:
+            return model1_robot.run(criteria, 0, cmdopts)
+
+        model_params = model1_robot._ode_params_calc(criteria, 0, cmdopts)
+        model_params.update(self._ode_params_calc(criteria, exp_num, cmdopts))
+
         nest = rep.Nest(cmdopts, criteria, exp_num)
         clusters = rep.BlockClusterSet(cmdopts, nest, cmdopts['exp_avgd_root'])
         n_blocks = reduce(lambda accum, cluster: accum + cluster.avg_blocks, clusters, 0)
@@ -235,70 +225,55 @@ class IntraCRW_N_Robots():
 
         return [res_df['searching'], res_df['homing'], res_df['avoiding']]
 
-    def _calc_model_params(self,
-                           criteria: bc.IConcreteBatchCriteria,
-                           exp_num: int,
-                           cmdopts: dict) -> tp.Dict[str, float]:
-        """
-        Calculate parameters for :class`CRWSolver`: N, tau_h, tau_av, alpha_ca, alpha_b.
-
-        - N - # of robots in the swarm; direct simulation input parameter.
-
-        - T - Length of simulation in timesteps; direct simulation input parameter.
-
-        - n_datapoints - How many datapoints were taken during simultion;  direct simultion input
-          parameter.
-
-        - tau_hN - Computed a priori using only arena geometry and block distribution information.
-
-        - tau_avN - Currently read from experiment data, though it should eventually be computed
-          via a model.
-
-        - alpha_caN - Currently computed from experiment data, though it should eventually be
-          computed via a model.
-
-        - alpha_b - Currently computed from experiment data, though it CAN and WILL be replaced
-          with a biased random walk/diffusion calculation soon.
-        """
-        print("--------------------------------------------------------------------------------")
-        print("Start ODE_N_robot param calc")
-        print("--------------------------------------------------------------------------------")
+    def _ode_params_calc(self,
+                         criteria: bc.IConcreteBatchCriteria,
+                         exp_num: int,
+                         cmdopts: dict) -> tp.Dict[str, float]:
         fsm_counts_df = core.utils.pd_csv_read(os.path.join(cmdopts['exp_avgd_root'],
                                                             'fsm-interference-counts.csv'))
 
-        tau_avN = fsm_counts_df['cum_avg_interference_duration'].iloc[-1]
-
-        n_robots = criteria.populations(cmdopts)[exp_num]
-
-        tau_hN = IntraExpHomingTimeNRobots(self.main_config, self.config).run(criteria,
-                                                                              exp_num,
-                                                                              cmdopts)[0]
-
-        alpha_caN = IntraExpRobotInterferenceRate(self.main_config, self.config).run(criteria,
-                                                                                     exp_num,
-                                                                                     cmdopts)[0]
-
-        alpha_b = IntraExpAcqRate(self.main_config, self.config).run(criteria,
-                                                                     exp_num,
-                                                                     cmdopts)[0]
+        # N,T,n_datapoints are directly from simulation inputs
+        N = criteria.populations(cmdopts)[exp_num]
 
         spec = ExperimentSpec(criteria, exp_num, cmdopts)
-
         T_in_secs = ts.TimeSetup.extract_explen(XMLAttrChangeSet.unpickle(spec.exp_def_fpath))
         T = T_in_secs * ts.kTICKS_PER_SECOND
+        n_datapoints = len(fsm_counts_df.index)
+
+        # This is OK to read from experimental data, per the paper.
+        tau_avN = fsm_counts_df['int_avg_interference_duration'].iloc[-1]
+
+        # tau_h, alpha_b are computed directly from simulation inputs/configuration, so we can run()
+        # them here.
+        tau_hN = IntraExp_HomingTime_NRobots(self.main_config, self.config).run(criteria,
+                                                                                exp_num,
+                                                                                cmdopts)[0]
+
+        # FIXME: N_av1 COULD be computed a priori, but I don't have time to do it right now, so I
+        # just read it from simulation results.
+        fsm_counts1_df = core.utils.pd_csv_read(os.path.join(cmdopts['exp0_avgd_root'],
+                                                             'fsm-interference-counts.csv'))
+
+        N_av1 = fsm_counts1_df['int_avg_exp_interference'].iloc[-1]
+
+        # crwD calculated directly from simulation inputs/configuration
+        acq = IntraExp_BlockAcqRate_NRobots(self.main_config, self.config)
+        alpha_b = acq.run(criteria, exp_num, cmdopts)[0]
+        crwD = diffusion.calc_crwD(N, float(self.config['wander_mean_speed']))
 
         params = {
-            'N': n_robots,
+            'N': N,
             'T': T,
             'tau_avN': tau_avN,
+            'N_av1': N_av1,
             'tau_hN': tau_hN['model'].iloc[-1],
             'alpha_bN': alpha_b['model'].iloc[-1],
-            'alpha_caN': alpha_caN['model'].iloc[-1],
-            'n_datapoints': len(fsm_counts_df.index)
+            'crwD': crwD,
+            'n_datapoints': n_datapoints
         }
 
         print("--------------------------------------------------------------------------------")
-        print("Calculated ODE_N_robot params:")
+        print("Calculated ODE params for N robots:")
         print(params)
         print("--------------------------------------------------------------------------------")
 
@@ -310,8 +285,16 @@ class IntraCRW_N_Robots():
 ################################################################################
 
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterCRW_N_Robots():
+class InterExp_ODE_NRobots():
     r"""
+    Models the behavior of a swarm of :math:`\mathcal{N}` foraging robots using
+    :class:`IntraExp_ODE_NRobots` across all experiments in the batch.
+
+    .. IMPORTANT::
+       This model does not have a kernel() function which computes the calculation, because
+       it is a summary model, built on simpler intra-experiment models.
+
+    From :xref:`Harwell2021a`.
     """
 
     def __init__(self, main_config: dict, config: dict) -> None:
@@ -322,9 +305,9 @@ class InterCRW_N_Robots():
         return True
 
     def target_csv_stems(self) -> tp.List[str]:
-        return ['interference-in-cum-avg',
-                'block-acq-exploring-cum-avg',
-                'block-transporter-homing-nest-cum-avg']
+        return ['block-acq-counts-true-exploring-int-avg',
+                'block-transporter-homing-nest-int-avg',
+                'interference-in-int-avg']
 
     def legend_names(self) -> tp.List[str]:
         return ['ODE Solution for Interference Counts',
@@ -339,6 +322,7 @@ class InterCRW_N_Robots():
         dirs = criteria.gen_exp_dirnames(cmdopts)
         res_df_avoiding = pd.DataFrame(columns=dirs, index=[0])
         res_df_searching = pd.DataFrame(columns=dirs, index=[0])
+        res_df_homing = pd.DataFrame(columns=dirs, index=[0])
 
         # attempting to get one model datapoint from batch to be representative of ODE solution
 
@@ -353,30 +337,83 @@ class InterCRW_N_Robots():
             cmdopts2["exp_model_root"] = os.path.join(cmdopts['batch_model_root'], exp)
 
             cmdopts2["exp0_output_root"] = os.path.join(cmdopts2["batch_output_root"], dirs[0])
-            cmdopts2["exp0_avgd_root"] = os.path.join(
-                cmdopts2["exp0_output_root"], self.main_config['sierra']['avg_output_leaf'])
+            cmdopts2["exp0_avgd_root"] = os.path.join(cmdopts2["exp0_output_root"],
+                                                      self.main_config['sierra']['avg_output_leaf'])
 
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
-            # Model only targets a single graph   (will be N robot case)
-            intra_df = IntraODE_N_Robots(self.main_config,
-                                         self.config).run(criteria,
-                                                          i,
-                                                          cmdopts2)
+            intra_dfs = IntraExp_ODE_NRobots(self.main_config,
+                                             self.config).run(criteria,
+                                                              i,
+                                                              cmdopts2)
 
             # gets steady state solution for avoiding and searching counts
-            avoiding_sol = float(intra_df[0].iloc[-1])
-            searching_sol = float(intra_df[1].iloc[-1])
+            res_df_searching[exp] = intra_dfs[0].iloc[-1]
+            res_df_homing[exp] = intra_dfs[1].iloc[-1]
+            res_df_avoiding[exp] = intra_dfs[2].iloc[-1]
 
-            res_df_avoiding[exp] = avoiding_sol
-            res_df_searching[exp] = searching_sol
+            # print(res_df_searching)
+            # print(res_df_homing)
+            # print(res_df_avoiding)
 
-            print('avoiding and searching df ---------------')
-            print(res_df_avoiding)
-            print(res_df_searching)
+        return [res_df_searching, res_df_homing, res_df_avoiding]
 
-            # res_df[exp] = float(avoiding_df.iloc[-1])
-            # searching_df.loc[searching_df.index[-1]]]
-            # res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
 
-        return [res_df_avoiding, res_df_searching]
+@implements.implements(core.models.interface.IConcreteInterExpModel1D)
+class InterExp_ODEWrapper_NRobots():
+    r"""
+    Thin wrapper class around :class:`InterExp_ODE_NRobots` which runs the ODE model across all
+    experiments in a batch, and then uses the results to predict performance:
+
+    - Raw performance
+    - Scalability
+    - Emergent self-organization
+
+    .. IMPORTANT::
+        This model does not have a kernel() function which computes the calculation, because
+        it is a summary model, built on simpler inter-experiment models.
+
+    From :xref:`Harwell2021a`.
+
+    """
+
+    def __init__(self, main_config: dict, config: dict) -> None:
+        self.main_config = main_config
+        self.config = config
+
+        # Performance measures
+        self.raw_perf = InterExp_RawPerf_NRobots(self.main_config,
+                                                 self.config)
+        self.scalability = InterExp_Scalability_NRobots(self.main_config,
+                                                        self.config)
+        self.self_org = InterExp_SelfOrg_NRobots(self.main_config,
+                                                 self.config)
+
+    def run_for_batch(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict) -> bool:
+        return True
+
+    def target_csv_stems(self) -> tp.List[str]:
+        return [self.raw_perf.target_csv_stems()[0],
+                self.scalability.target_csv_stems()[0],
+                self.self_org.target_csv_stems()[0]]
+
+    def legend_names(self) -> tp.List[str]:
+        return [self.raw_perf.legend_names()[0],
+                self.scalability.legend_names()[0],
+                self.self_org.legend_names()[0]]
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__
+
+    def run(self, criteria: bc.IConcreteBatchCriteria, cmdopts: dict) -> tp.List[pd.DataFrame]:
+
+        dirs = criteria.gen_exp_dirnames(cmdopts)
+
+        ode = InterExp_ODE_NRobots(self.main_config, self.config)
+        dfs = ode.run(criteria, cmdopts)
+
+        perf_df = self.raw_perf.run(criteria, cmdopts)[0]
+        sc_df = self.scalability.kernel(criteria, cmdopts, perf_df)
+        so_df = self.self_org.kernel(criteria, cmdopts, perf_df, dfs[2])
+
+        return [perf_df, sc_df, so_df]

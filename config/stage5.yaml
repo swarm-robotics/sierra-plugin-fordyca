@@ -64,10 +64,25 @@ inter_scenario:
     - src_stem: PM-scalability-parallel-frac
       dest_stem: sc-PM-scalability-parallel-frac
       title: 'Swarm Scalability (Parallel Fraction)'
-      label: 'Scalability Value'
+      label: '$\log_{2}(Scalability Value)$'
 
       # self-organization
     - src_stem: PM-self-org-mfl
       dest_stem: sc-PM-self-org-mfl
       title: 'Swarm Spatial Self Organization'
-      label: 'Self-Organization Value'
+      label: '$\log_{2}(Self-Organization Value)$'
+
+    - src_stem: block-transporter-homing-nest-int-avg
+      dest_stem: sc-N_h
+      title: 'Homing ($\mathcal{N}_h$)'
+      label: '$\log_{2}(\# Robots)$'
+
+    - src_stem: block-acq-counts-true-exploring-int-avg
+      dest_stem: sc-N_s
+      title: 'Searching ($\mathcal{N}_s$)'
+      label: '$\log_{2}(\# Robots)$'
+
+    - src_stem: interference-in-int-avg
+      dest_stem: sc-N_av
+      title: 'Collision Avoidance ($\mathcal{N}_{av}^s+\mathcal{N}_{av}^h$)'
+      label: '$\log_{2}(\# Robots)$'

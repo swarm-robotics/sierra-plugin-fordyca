@@ -35,19 +35,18 @@ from core.experiment_spec import ExperimentSpec
 import projects.fordyca.models.representation as rep
 import core.variables.batch_criteria as bc
 from core.vector import Vector3D
-import core.generators.scenario_generator_parser as sgp
 
 from projects.fordyca.models.density import BlockAcqDensity
-from projects.fordyca.models.model_error import Model2DError
 from projects.fordyca.models.dist_measure import DistanceMeasure2D
+import projects.fordyca.models.diffusion as diffusion
 
 
 def available_models(category: str):
     if category == 'intra':
-        return ['IntraExpAcqRate', 'IntraExpCollectionRate']
+        return ['IntraExp_AcqRate_NRobots', 'IntraExp_BlockCollectionRate_NRobots']
     elif category == 'inter':
-        return ['InterExpCollectionRate',
-                'InterExpAcqRate']
+        return ['InterExp_BlockCollectionRate_NRobots',
+                'InterExp_AcqRate_NRobots']
     else:
         return None
 
@@ -57,16 +56,16 @@ def available_models(category: str):
 
 
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraExpAcqRate():
+class IntraExp_BlockAcqRate_NRobots():
     """
-    Models the steady state block acquisition rate of the swarm, assuming purely reactive
-    robots CRW robots.
+    Models the steady state block acquisition rate of a swarm of N CRW robots.
 
-    Calculates:
-      # . Expected homing distance.
-      # . Diffusion constant of the swarm, using :xref:`Codling2010`.
-      # . Expected time for a swarm of N robots to diffusion from the center of the nest to the
-         expected block acquisition location. 1/ expected time is the rate.
+    .. IMPORTANT::
+       This model does not have a kernel() function which computes the calculation, because
+       it does not require ANY experimental data, and can be computed from first principles, so it
+       is always OK to :method:`run()` it.
+
+    From :xref:`Harwell2021a`.
     """
 
     def __init__(self, main_config: dict, config: dict) -> None:
@@ -107,39 +106,19 @@ class IntraExpAcqRate():
         else:
             result_opaths = [os.path.join(cmdopts['exp_avgd_root'])]
 
-        dist = 0.0
         nest = rep.Nest(cmdopts, criteria, exp_num)
 
-        acq_dist = ExpectedAcqDist()
+        dist = 0.0
         for result in result_opaths:
-            dist += acq_dist(cmdopts, result, nest)
+            dist += ExpectedAcqDist()(cmdopts, result, nest)
 
         # Average our results
-        dist /= len(result_opaths)
+        avg_acq_dist = dist / len(result_opaths)
         n_robots = criteria.populations(cmdopts)[exp_num]
 
-        fudges = {
-            'SS': 1.293,
-            'DS': 1.22,
-            'RN': 1.25,
-            'PL': 1.30
-        }
-        res = sgp.ScenarioGeneratorParser.reparse_str(cmdopts['scenario'])
-
-        tick_len = 1.0 / ts.kTICKS_PER_SECOND
-        wander_speed = float(self.config['wander_mean_speed'])
-
-        # From Codling2010
-
-        D = (wander_speed ** 2 * 1.293 / (4 * tick_len)) * \
-            math.pow(n_robots, fudges[res['dist_type']])
-
-        # diffusion time = (diffusion dist) ^2 / (2 * D)
-        diff_time = dist ** 2 / (2 * D)
-
-        # Inverse of diffusion time from nest to expected acquisition location is alpha_b
-        alpha_b = 1.0 / diff_time
-        print(D, dist, diff_time, alpha_b)
+        alpha_b = self._kernel(N=n_robots,
+                               wander_speed=float(self.config['wander_mean_speed']),
+                               avg_acq_dist=avg_acq_dist)
 
         rate_df = core.utils.pd_csv_read(os.path.join(result_opath, 'block-manipulation.csv'))
 
@@ -150,19 +129,32 @@ class IntraExpAcqRate():
         # All done!
         return [res_df]
 
+    @staticmethod
+    def _kernel(N: float, wander_speed: float, avg_acq_dist: float) -> float:
+        """
+        Calculates the CRW Diffusion constant in :xref:`Harwell2021a` for bounded arena geometry,
+        inspired by the results in :xref:`Codling2010`.
+        """
+        D = diffusion.calc_crwD(N, wander_speed)
+
+        # diffusion time = (diffusion dist) ^2 / (2 * D)
+        diff_time = avg_acq_dist ** 2 / (2 * D)
+
+        # Inverse of diffusion time from nest to expected acquisition location is alpha_b
+        return 1.0 / diff_time
+
 
 @implements.implements(core.models.interface.IConcreteIntraExpModel1D)
-class IntraExpCollectionRate():
+class IntraExp_BlockCollectionRate_NRobots():
     """
-    Models the steady state block collection rate :math:`L_{b}` of the swarm using Little's law and
-    :class:`IntraExpBlockAcqRate`. Makes the following assumptions:
+    Models the steady state block collection rate :math:`L_{b}` of the swarm of CRW robots using
+    Little's law and :class:`IntraExp_BlockAcqRate_NRobots`. Makes the following assumptions:
 
     - The reported homing time includes a non-negative penalty :math:`\mu_{b}` assessed in the nest
       which robots must serve before collection can complete. This models physical time taken to
       actually drop the block, and other environmental factors.
 
     - At most 1 robot can drop an object per-timestep (i.e. an M/M/1 queue).
-
     """
 
     @staticmethod
@@ -250,10 +242,14 @@ class IntraExpCollectionRate():
 
 
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpAcqRate():
+class InterExp_BlockAcqRate_NRobots():
     """
     Models the steady state block acquisition rate of the swarm, assuming purely reactive robots.
     That is, one model datapoint is computed for each experiment within the batch.
+
+    .. IMPORTANT::
+       This model does not have a kernel() function which computes the calculation, because
+       it is a summary model, built on simpler intra-experiment models.
     """
 
     def __init__(self, main_config: dict, config: dict):
@@ -297,10 +293,10 @@ class InterExpAcqRate():
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
             # Model only targets a single graph
-            intra_df = IntraExpAcqRate(self.main_config,
-                                       self.config).run(criteria,
-                                                        i,
-                                                        cmdopts2)[0]
+            intra_df = IntraExp_BlockAcqRate_NRobots(self.main_config,
+                                                     self.config).run(criteria,
+                                                                      i,
+                                                                      cmdopts2)[0]
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
 
         # All done!
@@ -308,10 +304,14 @@ class InterExpAcqRate():
 
 
 @implements.implements(core.models.interface.IConcreteInterExpModel1D)
-class InterExpCollectionRate():
+class InterExp_BlockCollectionRate_NRobots():
     """
-    Models the steady state block collection rate of the swarm, assuming purely reactive robots.
-    That is, one model datapoint is computed for each experiment within the batch.
+    Models the steady state block collection rate of the CRW swarm.
+
+    .. IMPORTANT::
+       This model does not have a kernel() function which computes the calculation, because
+       it is a summary model, built on simpler intra-experiment models.
+
     """
 
     def __init__(self, main_config: dict, config: dict):
@@ -355,10 +355,10 @@ class InterExpCollectionRate():
             core.utils.dir_create_checked(cmdopts2['exp_model_root'], exist_ok=True)
 
             # Model only targets a single graph
-            intra_df = IntraExpCollectionRate(self.main_config,
-                                              self.config).run(criteria,
-                                                               i,
-                                                               cmdopts2)[0]
+            intra_df = IntraExp_BlockCollectionRate_NRobots(self.main_config,
+                                                            self.config).run(criteria,
+                                                                             i,
+                                                                             cmdopts2)[0]
             res_df[exp] = intra_df.loc[intra_df.index[-1], 'model']
 
         # All done!

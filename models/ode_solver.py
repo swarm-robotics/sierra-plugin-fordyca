@@ -15,22 +15,23 @@
 #  SIERRA.  If not, see <http://www.gnu.org/licenses/
 
 """
-Intra- and inter-experiment models for the time it takes a single robot to return to the nest after
-picking up an object.
+ODE solvers for swarm behavior in different scenarios.
 """
 # Core packages
 import typing as tp
+import math
 
 # 3rd party packages
 import numpy as np
 import scipy.integrate as si
 
 # Project packages
+from projects.fordyca.models.interference import IntraExp_RobotInterferenceRate_NRobots
 
 
 class CRWSolver():
     """
-    Solves the steady state counts of # reactive robots {searching, avoiding, homing} running the
+    Solves the steady state counts of # robots {searching, avoiding, homing} running the
     CRW controller in a foraging task.
 
     If N=1, requires the following parameters:
@@ -44,7 +45,7 @@ class CRWSolver():
 
     If N > 1, the following addition parameters are needed:
     - tau_avN - Average collision avoidance time for a robot in a N robot swarm.
-    - alpha_caN - Rate of entering collision avoidance for 1 robot.
+    - crwD - Diffusion constant for a swarm of N CRW robots.
     """
 
     def __init__(self, params: tp.Dict[str, float]):
@@ -59,12 +60,12 @@ class CRWSolver():
         # time points
         t = np.linspace(0, self.params['T'], self.params['n_datapoints'])
         z0_arr = [z0['N_s0'], z0['N_h0'],  z0['N_avs0'], z0['B0']]
-        z = si.odeint(self.kernel, z0_arr, t, args=(self.params,))
+        z = si.odeint(self.kernel, z0_arr, t, args=(self, self.params))
 
         return z
 
     @staticmethod
-    def kernel(z: tp.Dict[str, float], t: np.array, params: tp.Dict[str, float]):
+    def kernel(z: tp.Dict[str, float], t: np.array, self, params: tp.Dict[str, float]):
         N = params['N']
         N_s = z[0]
         N_h = z[1]
@@ -74,13 +75,20 @@ class CRWSolver():
 
         if N == 1:
             tau_av = params['tau_av1']
+
             alpha_ca = params['alpha_ca1']
             tau_h = params['tau_h1']
             alpha_b = params['alpha_b0']
-
         else:
             tau_av = params['tau_avN']
-            alpha_ca = params['alpha_caN']
+
+            N_avN_est = params['N_av1'] * params['crwD']
+
+            alpha_ca = IntraExp_RobotInterferenceRate_NRobots.kernel(N_av1=params['N_av1'],
+                                                                     tau_av1=params['tau_av1'],
+                                                                     N_avN=N_avN_est,
+                                                                     tau_avN=params['tau_avN'])
+
             tau_h = params['tau_hN']
             alpha_b = params['alpha_bN']
 
