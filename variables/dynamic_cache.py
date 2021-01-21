@@ -14,13 +14,20 @@
 #  You should have received a copy of the GNU General Public License along with
 #  SIERRA.  If not, see <http://www.gnu.org/licenses/
 
+# Core packages
 import typing as tp
 
-from core.variables.base_variable import BaseVariable
+# 3rd party packages
+import implements
+
+# Project packages
+from core.variables.base_variable import IBaseVariable
 from core.utils import ArenaExtent as ArenaExtent
+from core.xml_luigi import XMLAttrChangeSet, XMLAttrChange, XMLTagRmList, XMLTagAddList
 
 
-class DynamicCache(BaseVariable):
+@implements.implements(IBaseVariable)
+class DynamicCache():
 
     """
     Defines the size and capacity of a dynamic cache to test with. Only really applicable to single
@@ -32,8 +39,9 @@ class DynamicCache(BaseVariable):
 
     def __init__(self, extents: tp.List[ArenaExtent]):
         self.extents = extents
+        self.attr_changes = None
 
-    def gen_attr_changelist(self):
+    def gen_attr_changelist(self) -> tp.List[XMLAttrChangeSet]:
         """
         Generate list of sets of changes necessary to make to the input file to correctly set up the
         simulation for the list of static cache sizes specified in constructor.
@@ -41,38 +49,40 @@ class DynamicCache(BaseVariable):
         - Disables dynamic caches
         - Enables static caches
         """
-        return [set([
-            (".//loop_functions/caches/dynamic", "enable", "true"),
-            (".//loop_functions/caches/static", "enable", "false"),
-            (".//loop_functions/caches/dynamic", "min_dist", "{0}".format(min(e.xmax * 0.20,
-                                                                              e.ymax * 0.20))),
+        if self.attr_changes is None:
+            self.attr_changes = [XMLAttrChangeSet(
+                XMLAttrChange(".//loop_functions/caches/dynamic", "enable", "true"),
+                XMLAttrChange(".//loop_functions/caches/static", "enable", "false"),
+                XMLAttrChange(".//loop_functions/caches/dynamic", "min_dist", "{0:.9f}".format(min(e.ur.x * 0.20,
+                                                                                                   e.ur.y * 0.20))),
 
-            (".//loop_functions/caches", "dimension", "{0}".format(max(e.xmax * 0.20,
-                                                                       e.ymax * 0.20))),
+                XMLAttrChange(".//loop_functions/caches", "dimension", "{0:.9f}".format(max(e.ur.x * 0.20,
+                                                                                            e.ur.y * 0.20))),
 
-            # Set to dimensions of cache to ensure that caches will not be created such that they
-            # overlap
-            (".//cache_sel_matrix", "cache_prox_dist", "{0}".format(max(e.xmax * 0.20,
-                                                                        e.ymax * 0.20))),
+                # Set to dimensions of cache to ensure that caches will not be created such that they
+                # overlap
+                XMLAttrChange(".//cache_sel_matrix", "cache_prox_dist", "{0:.9f}".format(max(e.ur.x * 0.20,
+                                                                                             e.ur.y * 0.20))),
 
-            (".//cache_sel_matrix", "nest_prox_dist", "{0}".format(max(e.xmax * 0.25,
-                                                                       e.ymax * 0.25))),
+                (".//cache_sel_matrix", "nest_prox_dist", "{0:.9f}".format(max(e.ur.x * 0.20,
+                                                                               e.ur.y * 0.20))),
 
-            (".//cache_sel_matrix", "block_prox_dist", "{0}".format(max(e.xmax * 0.20,
-                                                                        e.ymax * 0.20))),
+                (".//cache_sel_matrix", "block_prox_dist", "{0:.9f}".format(max(e.ur.x * 0.20,
+                                                                                e.ur.y * 0.20))),
 
-            (".//cache_sel_matrix", "site_xrange", "{0}:{1}".format(max(e.xmax * 0.20,
-                                                                        e.ymax * 0.20) / 2.0,
-                                                                    e.xmax - max(e.xmax * 0.20,
-                                                                                 e.ymax * 0.20) / 2.0)),
-            (".//cache_sel_matrix", "site_yrange", "{0}:{1}".format(max(e.xmax * 0.20,
-                                                                        e.ymax * 0.20) / 2.0,
-                                                                    e.ymax - max(e.xmax * 0.20,
-                                                                                 e.ymax * 0.20) / 2.0)),
-        ]) for e in self.extents]
+                (".//cache_sel_matrix", "site_xrange", "{0}:{1:.9f}".format(max(e.ur.x * 0.20,
+                                                                                e.ur.y * 0.20) / 2.0,
+                                                                            e.ur.x - max(e.ur.x * 0.20,
+                                                                                         e.ur.y * 0.20) / 2.0)),
+                (".//cache_sel_matrix", "site_yrange", "{0}:{1:.9f}".format(max(e.ur.x * 0.20,
+                                                                                e.ur.y * 0.20) / 2.0,
+                                                                            e.ur.y - max(e.ur.x * 0.20,
+                                                                                         e.ur.y * 0.20) / 2.0)),
+            ) for e in self.extents]
+        return self.attr_changes
 
-    def gen_tag_rmlist(self):
+    def gen_tag_rmlist(self) -> tp.List[XMLTagRmList]:
         return []
 
-    def gen_tag_addlist(self):
+    def gen_tag_addlist(self) -> tp.List[XMLTagAddList]:
         return []

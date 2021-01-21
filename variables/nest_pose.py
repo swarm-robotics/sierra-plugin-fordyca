@@ -14,14 +14,20 @@
 #  You should have received a copy of the GNU General Public License along with
 #  SIERRA.  If not, see <http://www.gnu.org/licenses/
 
+# Core packages
 import typing as tp
 
-from core.variables.base_variable import BaseVariable
+# 3rd party packages
+import implements
 
+# Project packages
+from core.variables.base_variable import IBaseVariable
 from core.utils import ArenaExtent as ArenaExtent
+from core.xml_luigi import XMLAttrChangeSet, XMLTagRmList, XMLTagAddList, XMLTagRm, XMLTagAdd, XMLAttrChange
 
 
-class NestPose(BaseVariable):
+@implements.implements(IBaseVariable)
+class NestPose():
 
     """
     Defines the position/size of the nest based on block distribution type. Exactly ONE nest is
@@ -36,45 +42,69 @@ class NestPose(BaseVariable):
     def __init__(self, dist_type: str, extents: tp.List[ArenaExtent]):
         self.dist_type = dist_type
         self.extents = extents
+        self.attr_changes = []  # type: tp.List
 
-    def gen_attr_changelist(self):
+    def gen_attr_changelist(self) -> tp.List[XMLAttrChangeSet]:
         """
         Generate list of sets of changes necessary to make to the input file to correctly set up the
         simulation for the specified block distribution/nest.
 
         """
-        if self.dist_type == "single_source":
-            return [set([
-                (".//arena_map/nests/nest", "dims", "{0}, {1}".format(s.xmax * 0.1, s.ymax * 0.8)),
-                (".//arena_map/nests/nest",
-                 "center",
-                 "{0}, {1}".format(s.xmax * 0.1, s.ymax / 2.0)),
-                (".//block_sel_matrix", "nest", "{0}, {1}".format(s.xmax * 0.1, s.ymax / 2.0)),
-            ]) for s in self.extents]
-        elif self.dist_type == "dual_source":
-            return [set([
-                (".//arena_map/nests/nest", "dims", "{0}, {1}".format(s.xmax * 0.1, s.ymax * 0.8)),
-                (".//arena_map/nests/nest",
-                 "center",
-                 "{0}, {1}".format(s.xmax * 0.5, s.ymax * 0.5)),
-                (".//block_sel_matrix", "nest", "{0}, {1}".format(s.xmax * 0.5, s.ymax * 0.5)),
-            ]) for s in self.extents]
-        elif (self.dist_type == "powerlaw" or self.dist_type == "random" or
-              self.dist_type == "quad_source"):
-            return [set([
-                (".//arena_map/nests/nest",
-                 "dims",
-                 "{0}, {1}".format(s.xmax * 0.20, s.xmax * 0.20)),
-                (".//arena_map/nests/nest", "center", "{0}, {0}".format(s.xmax * 0.5)),
-                (".//block_sel_matrix", "nest", "{0}, {0}".format(s.xmax * 0.5)),
-            ])
-                for s in self.extents]
-        else:
-            # Eventually, I might want to have definitions for the other block distribution types
-            raise NotImplementedError
+        if not self.attr_changes:
+            if self.dist_type == 'SS':
+                self.attr_changes = [XMLAttrChangeSet(
+                    XMLAttrChange(".//arena_map/nests/nest",
+                                  "dims",
+                                  "{0:.9f}, {1:.9f}".format(s.ur.x * 0.1, s.ur.y * 0.8)),
+                    XMLAttrChange(".//arena_map/nests/nest",
+                                  "center",
+                                  "{0:.9f}, {1:.9f}".format(s.ur.x * 0.1, s.ur.y / 2.0)),
+                    XMLAttrChange(".//params/nest",
+                                  "dims",
+                                  "{0:.9f}, {1:.9f}".format(s.ur.x * 0.1, s.ur.y * 0.8)),
+                    XMLAttrChange(".//params/nest",
+                                  "center",
+                                  "{0:.9f}, {1:.9f}".format(s.ur.x * 0.1, s.ur.y / 2.0))
 
-    def gen_tag_rmlist(self):
+                ) for s in self.extents]
+            elif self.dist_type == 'DS':
+                self.attr_changes = [XMLAttrChangeSet(
+                    XMLAttrChange(".//arena_map/nests/nest",
+                                  "dims",
+                                  "{0:.9f}, {1:.9f}".format(s.ur.x * 0.1, s.ur.y * 0.8)),
+                    XMLAttrChange(".//arena_map/nests/nest",
+                                  "center",
+                                  "{0:.9f}, {1:.9f}".format(s.ur.x * 0.5, s.ur.y * 0.5)),
+                    XMLAttrChange(".//params/nest",
+                                  "dims",
+                                  "{0:.9f}, {1:.9f}".format(s.ur.x * 0.1, s.ur.y * 0.8)),
+                    XMLAttrChange(".//params/nest",
+                                  "center",
+                                  "{0:.9f}, {1:.9f}".format(s.ur.x * 0.5, s.ur.y * 0.5)),
+                ) for s in self.extents]
+            elif (self.dist_type == 'PL' or self.dist_type == 'RN' or self.dist_type == 'QS'):
+                self.attr_changes = [XMLAttrChangeSet(
+                    XMLAttrChange(".//arena_map/nests/nest",
+                                  "dims",
+                                  "{0:.9f}, {1:.9f}".format(s.ur.x * 0.20, s.ur.x * 0.20)),
+                    XMLAttrChange(".//arena_map/nests/nest", "center",
+                                  "{0:.9f}, {0:.9f}".format(s.ur.x * 0.5)),
+                    XMLAttrChange(".//params/nest",
+                                  "dims",
+                                  "{0:.9f}, {1:.9f}".format(s.ur.x * 0.20, s.ur.x * 0.20)),
+                    XMLAttrChange(".//params/nest", "center",
+                                  "{0:.9f}, {0:.9f}".format(s.ur.x * 0.5)),
+                )
+                    for s in self.extents]
+            else:
+                # Eventually, I might want to have definitions for the other block distribution
+                # types
+                raise NotImplementedError
+
+        return self.attr_changes
+
+    def gen_tag_rmlist(self) -> tp.List[XMLTagRmList]:
         return []
 
-    def gen_tag_addlist(self):
+    def gen_tag_addlist(self) -> tp.List[XMLTagAddList]:
         return []

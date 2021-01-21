@@ -1,37 +1,88 @@
 # Intra-scenario
 intra_scenario:
   graphs:
-    - src_stem: pm-scalability-fm
-      dest_stem: cc-pm-scalability-fm
-      title: 'Swarm Scalability (Fractional Performance Maintenance)'
-      label: 'Scalability Value'
-
-    - src_stem: pm-scalability-norm
-      dest_stem: cc-pm-scalability-norm
-      title: 'Swarm Scalability (Normalized)'
-      label: 'Scalability Value'
-
-    - src_stem: pm-self-org-fl
-      dest_stem: cc-pm-self-org-fl
-      title: 'Swarm Self Organization'
-      label: 'Self Organization Value'
-
-    # - src_stem: pm-robustness-size
-    #   dest_stem: cc-pm-robustness-size
-    #   title: 'Swarm Robustness (Population Size)'
-    #   label: 'Robustness Value'
-
-    # - src_stem: pm-robustness-saa
-    #   dest_stem: cc-pm-robustness-saa
-    #   title: 'Swarm Robustness (SAA Noise)'
-    #   label: 'Robustness Value'
-
-    - src_stem: pm-blocks-transported-cum
-      dest_stem: cc-pm-blocks-transported-cum
+    # raw performance
+    - src_stem: PM-blocks-transported-cum-avg
+      dest_stem: cc-PM-blocks-transported-cum-avg
       title: 'Swarm Performance'
       label: 'Total Blocks Collected'
 
-    - src_stem: pm-karpflatt
-      dest_stem: cc-pm-karpflatt
-      title: 'Swarm Scalability (Karp-Flatt)'
-      label: 'Karp-Flatt Value'
+    # scalability
+    - src_stem: PM-scalability-norm
+      dest_stem: cc-PM-scalability-norm
+      title: 'Swarm Scalability (Normalized)'
+      label: 'Scalability Value'
+
+    - src_stem: PM-scalability-parallel-frac
+      dest_stem: cc-PM-scalability-parallel-frac
+      title: 'Swarm Scalability (Parallel Fraction)'
+      label: 'Scalability Value'
+
+      # self-organization
+    - src_stem: PM-self-org-ifl
+      dest_stem: cc-PM-self-org-ifl
+      title: 'Swarm Spatial Self Organization'
+      label: 'Self-Organization Value'
+
+    - src_stem: PM-self-org-mpg
+      dest_stem: cc-PM-self-org-mpg
+      title: 'Swarm Task-Based Self-Organization'
+      label: 'Self-Organization Value'
+
+      # flexibility
+    - src_stem: PM-reactivity
+      dest_stem: cc-PM-reactivity
+      title: 'Swarm Reactivity'
+      label: 'Reactivity Value'
+
+    - src_stem: PM-adaptability
+      dest_stem: cc-PM-adaptability
+      title: 'Swarm Adaptability'
+      label: 'Adaptability Value'
+
+    - src_stem: PM-robustness-pd
+      dest_stem: cc-PM-robustness-pd
+      title: 'Swarm Robustness (Population Dynamics)'
+      label: 'Robustness Value'
+
+    # robustness
+    - src_stem: PM-robustness-saa
+      dest_stem: cc-PM-robustness-saa
+      title: 'Swarm Robustness (SAA Noise)'
+      label: 'Robustness Value'
+
+# Inter-scenario
+inter_scenario:
+  graphs:
+    # raw performance
+    - src_stem: PM-raw
+      dest_stem: sc-PM-raw
+      title: 'Swarm Performance'
+      label: 'Block Collection Rate'
+
+      # scalability
+    - src_stem: PM-scalability-parallel-frac
+      dest_stem: sc-PM-scalability-parallel-frac
+      title: 'Swarm Scalability (Parallel Fraction)'
+      label: '$\log_{2}(Scalability Value)$'
+
+      # self-organization
+    - src_stem: PM-self-org-mfl
+      dest_stem: sc-PM-self-org-mfl
+      title: 'Swarm Spatial Self Organization'
+      label: '$\log_{2}(Self-Organization Value)$'
+
+    - src_stem: block-transporter-homing-nest-int-avg
+      dest_stem: sc-N_h
+      title: 'Homing ($\mathcal{N}_h$)'
+      label: '$\log_{2}(\# Robots)$'
+
+    - src_stem: block-acq-counts-true-exploring-int-avg
+      dest_stem: sc-N_s
+      title: 'Searching ($\mathcal{N}_s$)'
+      label: '$\log_{2}(\# Robots)$'
+
+    - src_stem: interference-in-int-avg
+      dest_stem: sc-N_av
+      title: 'Collision Avoidance ($\mathcal{N}_{av}^s+\mathcal{N}_{av}^h$)'
+      label: '$\log_{2}(\# Robots)$'

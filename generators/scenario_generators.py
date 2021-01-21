@@ -14,13 +14,54 @@
 #  You should have received a copy of the GNU General Public License along with
 #  SIERRA.  If not, see <http://www.gnu.org/licenses/
 
+# Core packages
+import typing as tp
 
-import core.generators.scenario_generator as sg
-import plugins.fordyca.generators.common as gc
+# Project packages
+import projects.fordyca.generators.common as gc
+from projects.fordyca.variables import dynamic_cache, static_cache
 from core.utils import ArenaExtent as ArenaExtent
+from core.xml_luigi import XMLLuigi
 
 
-class SSGenerator(sg.SSGenerator):
+def generate_dynamic_cache(exp_def: XMLLuigi, extent: ArenaExtent):
+    """
+    Generate XML changes for dynamic cache usage (depth2 simulations only).
+
+    Does not write generated changes to the simulation definition pickle file.
+    """
+    cache = dynamic_cache.DynamicCache([extent])
+
+    [exp_def.attr_change(a[0], a[1], a[2]) for a in cache.gen_attr_changelist()[0]]
+    rms = cache.gen_tag_rmlist()
+    if rms:  # non-empty
+        [exp_def.tag_remove(a) for a in rms[0]]
+
+
+def generate_static_cache(exp_def: XMLLuigi,
+                          extent: ArenaExtent,
+                          cmdopts: tp.Dict[str, str]):
+    """
+    Generate XML changes for static cache usage (depth1 simulations only).
+
+    Does not write generated changes to the simulation definition pickle file.
+    """
+
+    # If they specified how many blocks to use for static cache respawn, use that.
+    # Otherwise use the floor of 2.
+    if cmdopts['static_cache_blocks'] is None:
+        cache = static_cache.StaticCache([2], [extent])
+    else:
+        cache = static_cache.StaticCache([cmdopts['static_cache_blocks']],
+                                         [extent])
+
+    [exp_def.attr_change(a[0], a[1], a[2]) for a in cache.gen_attr_changelist()[0]]
+    rms = cache.gen_tag_rmlist()
+    if rms:  # non-empty
+        [exp_def.tag_remove(a) for a in rms[0]]
+
+
+class SSGenerator(gc.SSGenerator):
     """
     FORDYCA extensions to the single source foraging generator
     :class:`~core.generators.scenario_generator.SSGenerator`.
@@ -33,30 +74,21 @@ class SSGenerator(sg.SSGenerator):
     """
 
     def __init__(self, *args, **kwargs):
-        sg.SSGenerator.__init__(self, *args, **kwargs)
+        gc.SSGenerator.__init__(self, *args, **kwargs)
 
     def generate(self):
 
         exp_def = super().generate()
-        arena_dim = self.cmdopts['arena_dim']
 
         if "depth1" in self.controller:
-            gc.generate_static_cache(exp_def, ArenaExtent(dims=arena_dim), self.cmdopts)
+            generate_static_cache(exp_def, self.spec.arena_dim, self.cmdopts)
         if "depth2" in self.controller:
-            gc.generate_dynamic_cache(exp_def, ArenaExtent(dims=arena_dim))
-
-        self.generate_physics(exp_def,
-                              self.cmdopts,
-                              self.cmdopts['physics_engine_type2D'],
-                              self.cmdopts['physics_n_engines'],
-                              [ArenaExtent(dims=arena_dim)])
-
-        gc.generate_nest_pose(exp_def, ArenaExtent(dims=arena_dim), "single_source")
+            generate_dynamic_cache(exp_def, self.spec.arena_dim)
 
         return exp_def
 
 
-class DSGenerator(sg.DSGenerator):
+class DSGenerator(gc.DSGenerator):
     """
     FORDYCA extensions to the single source foraging generator
     :class:`~core.generators.single_source.DSGenerator`.
@@ -69,30 +101,21 @@ class DSGenerator(sg.DSGenerator):
     """
 
     def __init__(self, *args, **kwargs):
-        sg.DSGenerator.__init__(self, *args, **kwargs)
+        gc.DSGenerator.__init__(self, *args, **kwargs)
 
     def generate(self):
 
         exp_def = super().generate()
-        arena_dim = self.cmdopts['arena_dim']
 
         if "depth1" in self.controller:
-            gc.generate_static_cache(exp_def, ArenaExtent(dims=arena_dim), self.cmdopts)
+            generate_static_cache(exp_def, self.spec.arena_dim, self.cmdopts)
         if "depth2" in self.controller:
-            gc.generate_dynamic_cache(exp_def, ArenaExtent(dims=arena_dim))
-
-        self.generate_physics(exp_def,
-                              self.cmdopts,
-                              self.cmdopts['physics_engine_type2D'],
-                              self.cmdopts['physics_n_engines'],
-                              [ArenaExtent(dims=arena_dim)])
-
-        gc.generate_nest_pose(exp_def, ArenaExtent(dims=arena_dim), "dual_source")
+            generate_dynamic_cache(exp_def, self.spec.arena_dim)
 
         return exp_def
 
 
-class QSGenerator(sg.QSGenerator):
+class QSGenerator(gc.QSGenerator):
     """
     FORDYCA extensions to the single source foraging generator
     :class:`~core.generators.scenario_generator.QSGenerator`.
@@ -105,30 +128,21 @@ class QSGenerator(sg.QSGenerator):
     """
 
     def __init__(self, *args, **kwargs):
-        sg.QSGenerator.__init__(self, *args, **kwargs)
+        gc.QSGenerator.__init__(self, *args, **kwargs)
 
     def generate(self):
 
         exp_def = super().generate()
-        arena_dim = self.cmdopts['arena_dim']
 
         if "depth1" in self.controller:
-            gc.generate_static_cache(exp_def, ArenaExtent(dims=arena_dim), self.cmdopts)
+            generate_static_cache(exp_def, self.spec.arena_dim, self.cmdopts)
         if "depth2" in self.controller:
-            gc.generate_dynamic_cache(exp_def, ArenaExtent(dims=arena_dim))
-
-        self.generate_physics(exp_def,
-                              self.cmdopts,
-                              self.cmdopts['physics_engine_type2D'],
-                              self.cmdopts['physics_n_engines'],
-                              [ArenaExtent(dims=arena_dim)])
-
-        gc.generate_nest_pose(exp_def, ArenaExtent(dims=arena_dim), "quad_source")
+            generate_dynamic_cache(exp_def, self.spec.arena_dim)
 
         return exp_def
 
 
-class RNGenerator(sg.RNGenerator):
+class RNGenerator(gc.RNGenerator):
     """
     FORDYCA extensions to the single source foraging generator
     :class:`~core.generators.scenario_generator.RNGenerator`.
@@ -141,30 +155,21 @@ class RNGenerator(sg.RNGenerator):
     """
 
     def __init__(self, *args, **kwargs):
-        sg.RNGenerator.__init__(self, *args, **kwargs)
+        gc.RNGenerator.__init__(self, *args, **kwargs)
 
     def generate(self):
 
         exp_def = super().generate()
-        arena_dim = self.cmdopts['arena_dim']
 
         if "depth1" in self.controller:
-            gc.generate_static_cache(exp_def, ArenaExtent(dims=arena_dim), self.cmdopts)
+            generate_static_cache(exp_def, self.spec.arena_dim, self.cmdopts)
         if "depth2" in self.controller:
-            gc.generate_dynamic_cache(exp_def, ArenaExtent(dims=arena_dim))
-
-        self.generate_physics(exp_def,
-                              self.cmdopts,
-                              self.cmdopts['physics_engine_type2D'],
-                              self.cmdopts['physics_n_engines'],
-                              [ArenaExtent(dims=arena_dim)])
-
-        gc.generate_nest_pose(exp_def, ArenaExtent(dims=arena_dim), "random")
+            generate_dynamic_cache(exp_def, self.spec.arena_dim)
 
         return exp_def
 
 
-class PLGenerator(sg.PLGenerator):
+class PLGenerator(gc.PLGenerator):
     """
     FORDYCA extensions to the single source foraging generator
     :class:`~core.generators.scenario_generator.PLGenerator`.
@@ -177,24 +182,15 @@ class PLGenerator(sg.PLGenerator):
     """
 
     def __init__(self, *args, **kwargs):
-        sg.PLGenerator.__init__(self, *args, **kwargs)
+        gc.PLGenerator.__init__(self, *args, **kwargs)
 
     def generate(self):
 
         exp_def = super().generate()
-        arena_dim = self.cmdopts['arena_dim']
 
         if "depth1" in self.controller:
-            gc.generate_static_cache(exp_def, ArenaExtent(dims=arena_dim), self.cmdopts)
+            generate_static_cache(exp_def, self.spec.arena_dim, self.cmdopts)
         if "depth2" in self.controller:
-            gc.generate_dynamic_cache(exp_def, ArenaExtent(dims=arena_dim))
-
-        self.generate_physics(exp_def,
-                              self.cmdopts,
-                              self.cmdopts['physics_engine_type2D'],
-                              self.cmdopts['physics_n_engines'],
-                              [ArenaExtent(dims=arena_dim)])
-
-        gc.generate_nest_pose(exp_def, ArenaExtent(dims=arena_dim), "powerlaw")
+            generate_dynamic_cache(exp_def, self.spec.arena_dim)
 
         return exp_def

@@ -9,149 +9,164 @@ LN_perception:
 
 LN_block_trans:
   graphs:
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-int-avg
       col: int_avg_transported
       title: 'Average Blocks Transported (interval)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
-      dest_stem: cube-blocks-transported-int-avg
+    - src_stem: block-transportee
+      dest_stem: blocks-transported-cube-int-avg
       col: int_avg_cube_transported
       title: 'Average Cube Blocks Transported (interval)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
-      dest_stem: ramp-blocks-transported-int-avg
+    - src_stem: block-transportee
+      dest_stem: blocks-transported-ramp-int-avg
       col: int_avg_ramp_transported
       title: 'Average Ramp Blocks Transported (interval)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-cum-avg
       col: cum_avg_transported
       title: 'Average Blocks Transported (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
-      dest_stem: cube-blocks-transported-cum-avg
+    - src_stem: block-transportee
+      dest_stem: blocks-transported-cube-cum-avg
       col: cum_avg_cube_transported
       title: 'Average Cube Blocks Transported (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
-      dest_stem: ramp-blocks-transported-cum-avg
+    - src_stem: block-transportee
+      dest_stem: blocks-transported-ramp-cum-avg
       col: cum_avg_ramp_transported
       title: 'Average Ramp Blocks Transported (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: blocks-transported-cum
       col: cum_transported
       title: 'Blocks Transported (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
-      dest_stem: cube-blocks-transported-cum
+    - src_stem: block-transportee
+      dest_stem: blocks-transported-cube-cum
       col: cum_cube_transported
       title: 'Cube Blocks Transported (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
-      dest_stem: ramp-blocks-transported-cum
+    - src_stem: block-transportee
+      dest_stem: blocks-transported-ramp-cum
       col: cum_ramp_transported
       title: 'Ramp Blocks Transported (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Blocks'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: block-transporters-int-avg
       col: int_avg_transporters
       title: 'Average Block Transporters (interval)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: block-transport
+    - src_stem: block-transportee
       dest_stem: block-transporters-cum-avg
       col: cum_avg_transporters
       title: 'Average Block Transporters (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: block-transport
-      dest_stem: blocks-transport-time-int-avg
+    - src_stem: block-transportee
+      dest_stem: block-transport-time-int-avg
       col: int_avg_transport_time
       title: 'Average Block Transport Time (interval)'
       xlabel: 'Interval'
       ylabel: '# Timesteps'
 
-    - src_stem: block-transport
-      dest_stem: blocks-transport-time-cum-avg
+    - src_stem: block-transportee
+      dest_stem: block-transport-time-cum-avg
       col: cum_avg_transport_time
       title: 'Average Block Transport Time (Cumulative)'
       xlabel: 'Interval'
       ylabel: '# Timesteps'
 
-    - src_stem: block-transport
-      dest_stem: blocks-initial-wait-time-int-avg
+    - src_stem: block-transportee
+      dest_stem: block-transport-initial-wait-time-int-avg
       col: int_avg_initial_wait_time
       title: 'Average Block Initial Wait Time (interval)'
       xlabel: 'Interval'
       ylabel: '# Timesteps'
-    - src_stem: block-transport
-      dest_stem: blocks-initial-wait-time-cum-avg
+
+    - src_stem: block-transportee
+      dest_stem: block-transport-initial-wait-time-cum-avg
       col: cum_avg_initial_wait_time
       title: 'Average Block Initial Wait Time (cumulative)'
+      xlabel: 'Interval'
+      ylabel: '# Robots'
+
+    - src_stem: block-transporter
+      dest_stem: block-transporter-homing-nest-int-avg
+      col: int_avg_phototaxiing_to_goal
+      title: 'Average # Robots Homing (Interval)'
+      xlabel: 'Interval'
+      ylabel: '# Robots'
+
+    - src_stem: block-transporter
+      dest_stem: block-transport-homing-nest-cum-avg
+      col: cum_avg_phototaxiing_to_goal
+      title: 'Average # Robots Homing (Cumulative)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
 # Depth1
 LN_cache_acq:
   graphs:
-    - src_stem: cache-acquisition
+    - src_stem: cache-acq-counts
       dest_stem: cache-acquisition-int-avg
       col: int_avg_acquiring_goal
       title: 'Average Robots Acquiring Caches (interval)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: cache-acquisition
+    - src_stem: cache-acq-counts
       dest_stem: cache-acquisition-vectoring-int-avg
       col: int_avg_vectoring_to_goal
       title: 'Average Robots Vectoring To Caches (interval)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: cache-acquisition
+    - src_stem: cache-acq-counts
       dest_stem: cache-acquisition-exploring-int-avg
       col: int_avg_exploring_for_goal
       title: 'Average Robots Exploring For Caches (interval)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: cache-acquisition
+    - src_stem: cache-acq-counts
       dest_stem: cache-acquisition-cum-avg
       col: cum_avg_acquiring_goal
       title: 'Average Robots Acquiring Caches (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: cache-acquisition
+    - src_stem: cache-acq-counts
       dest_stem: cache-acquisition-vectoring-cum-avg
       col: cum_avg_vectoring_to_goal
       title: 'Average Robots Vectoring To Caches (cumulative)'
       xlabel: 'Interval'
       ylabel: '# Robots'
 
-    - src_stem: cache-acquisition
+    - src_stem: cache-acq-counts
       dest_stem: cache-acquisition-exploring-cum-avg
       col: cum_avg_exploring_for_goal
       title: 'Average Robots Exploring For Caches (cumulative)'
@@ -232,7 +247,7 @@ LN_cache_lifecycle:
       xlabel: 'Interval'
       ylabel: 'Count'
 
-LN_depth1_task_exec:
+LN_d1_task_exec:
   graphs:
     - src_stem: task-execution-collector
       dest_stem: task-execution-collector-exec-time-int-avg
@@ -575,29 +590,29 @@ LN_generalist_tab:
 LN_depth1_task_dist:
   graphs:
     - src_stem: task-distribution
-      dest_stem: task-distribution-depth0-count-int
-      col: int_avg_depth0_count
+      dest_stem: task-distribution-d0-count-int
+      col: int_avg_d0_count
       title: 'Task Distribution Depth0 Count (Interval)'
       xlabel: 'Interval'
       ylabel: 'Count'
 
     - src_stem: task-distribution
-      dest_stem: task-distribution-depth0-count-cum-avg
-      col: cum_avg_depth0_count
+      dest_stem: task-distribution-d0-count-cum-avg
+      col: cum_avg_d0_count
       title: 'Average Task Distribution Depth0 Count (Cumulative)'
       xlabel: 'Interval'
       ylabel: 'Count'
 
     - src_stem: task-distribution
-      dest_stem: task-distribution-depth1-count-int
-      col: int_avg_depth1_count
+      dest_stem: task-distribution-d1-count-int
+      col: int_avg_d1_count
       title: 'Task Distribution Depth1 Count (Interval)'
       xlabel: 'Interval'
       ylabel: 'Count'
 
     - src_stem: task-distribution
-      dest_stem: task-distribution-depth1-count-cum-avg
-      col: cum_avg_depth1_count
+      dest_stem: task-distribution-d1-count-cum-avg
+      col: cum_avg_d1_count
       title: 'Average Task Distribution Depth1 Count (Cumulative)'
       xlabel: 'Interval'
       ylabel: 'Count'
@@ -659,7 +674,7 @@ LN_depth1_task_dist:
       ylabel: 'Count'
 
 # Depth2
-LN_depth2_task_exec:
+LN_d2_task_exec:
   graphs:
     - src_stem: task-execution-cache-starter
       dest_stem: task-execution-cache-starter-exec-time-int-avg
@@ -998,18 +1013,18 @@ LN_depth2_task_exec:
       xlabel: 'Interval'
       ylabel: 'Count'
 
-LN_depth2_task_dist:
+LN_d2_task_dist:
   graphs:
     - src_stem: task-distribution
-      dest_stem: task-distribution-depth2-count-int
-      col: int_avg_depth2_count
+      dest_stem: task-distribution-d2-count-int
+      col: int_avg_d2_count
       title: 'Task Distribution Depth2 Count (Interval)'
       xlabel: 'Interval'
       ylabel: 'Count'
 
     - src_stem: task-distribution
-      dest_stem: task-distribution-depth2-count-cum-avg
-      col: cum_avg_depth2_count
+      dest_stem: task-distribution-d2-count-cum-avg
+      col: cum_avg_d2_count
       title: 'Average Task Distribution Depth2 Count (Cumulative)'
       xlabel: 'Interval'
       ylabel: 'Count'

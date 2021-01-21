@@ -1,20 +1,20 @@
 base_graphs: &base_graphs
-  - LN_fsm_collision
-  - LN_fsm_movement
+  - LN_fsm_interference
+  - LN_spatial_movement
   - LN_block_trans
   - LN_block_acq
   - LN_block_manip
-  - LN_convergence
-  - LN_perception
-  - LN_population
-  - HM_arena
-  - HM_swarm
+  # - LN_convergence
+  # - LN_perception
+  # - LN_population
+  # - HM_arena
+  # - HM_swarm
 
-depth0:
+d0:
   xml:
     attr_change:
-      - ['.//loop_functions', 'label', 'depth0_loop_functions']
-      - ['.//qt-opengl/user_functions', 'label', 'depth0_qt_user_functions']
+      - ['.//loop_functions', 'label', 'd0_loop_functions']
+      - ['.//qt-opengl/user_functions', 'label', 'd0_qt_user_functions']
   controllers:
     - name: CRW
       xml:
@@ -53,11 +53,11 @@ depth0:
         - *base_graphs
         - *DPO_graphs
 
-depth1:
+d1:
   xml:
     attr_change:
-      - ['.//loop_functions', 'label', 'depth1_loop_functions']
-      - ['.//qt-opengl/user_functions', 'label', 'depth1_qt_user_functions']
+      - ['.//loop_functions', 'label', 'd1_loop_functions']
+      - ['.//qt-opengl/user_functions', 'label', 'd1_qt_user_functions']
   controllers:
     - name: BITD_DPO
       xml:
@@ -70,8 +70,8 @@ depth1:
         - LN_cache_util
         - LN_cache_lifecycle
         - LN_cache_acq
-        - LN_depth1_task_exec
-        - LN_depth1_task_dist
+        - LN_d1_task_exec
+        - LN_d1_task_dist
         - LN_generalist_tab
     - name: BITD_ODPO
       xml:
@@ -98,11 +98,11 @@ depth1:
         - *DPO_graphs
         - *BITD_DPO_graphs
 
-depth2:
+d2:
   xml:
     attr_change:
-      - ['.//loop_functions', 'label', 'depth2_loop_functions']
-      - ['.//qt-opengl/user_functions', 'label', 'depth2_qt_user_functions']
+      - ['.//loop_functions', 'label', 'd2_loop_functions']
+      - ['.//qt-opengl/user_functions', 'label', 'd2_qt_user_functions']
 
   controllers:
     - name: BIRTD_DPO
@@ -118,9 +118,9 @@ depth2:
         - LN_cache_lifecycle
         - LN_cache_acq
         - LN_cache_sites
-        - LN_depth1_task_exec
-        - LN_depth2_task_exec
-        - LN_depth2_task_dist
+        - LN_d1_task_exec
+        - LN_d2_task_exec
+        - LN_d2_task_dist
         - LN_harvester_tab
         - LN_collector_tab
         - LN_generalist_tab

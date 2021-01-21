@@ -1,54 +1,153 @@
 sim:
-  metrics_leaf: 'metrics'
-  frames_leaf: 'frames'
+  sim_metrics_leaf: 'metrics'
+  argos_frames_leaf: 'frames'
 
 sierra:
   collate_csv_leaf: 'collated-csvs'
   collate_graph_leaf: 'collated-graphs'
   avg_output_leaf: 'averaged-output'
-  plugin_frames_leaf: 'plugin-frames'
+  project_frames_leaf: 'project-frames'
+  models_leaf: 'models'
 
-  perf:
-    inter_perf_csv: 'blocks-transported-cum.csv'
-    ca_in_csv: 'ca-in-cum-avg.csv'
-    tv_flexibility_csv: 'tv-environment.csv'
-    intra_perf_csv: 'block-transport.csv'
-    intra_perf_col: 'cum_avg_transported'
-    tv_population_csv: 'tv-population.csv'
+perf:
+  inverted: false
+  # intra_perf_csv: 'block-manipulation.csv'
+  # intra_perf_col: 'cum_avg_free_pickup_events'
+  # inter_perf_csv: 'block-manip-free-pickup-events-cum-avg.csv'
+  # raw_perf_title: 'Block Acquisition Rate (Cumulative)'
+  # raw_perf_ylabel: 'Events/Timestep'
+
+  # intra_perf_csv: 'block-transport.csv'
+  # intra_perf_col: 'cum_avg_transport_time'
+  # inter_perf_csv: 'block-transport-time-cum-avg.csv'
+  # raw_perf_title: 'Block Transport Time (Cumulative)'
+  # raw_perf_ylabel: 'Timesteps'
+
+  intra_perf_csv: 'block-transportee.csv'
+  intra_perf_col: 'int_avg_transported'
+  inter_perf_csv: 'blocks-transported-int-avg.csv'
+  raw_perf_title: 'Blocks Transported (Interval Average)'
+  raw_perf_ylabel: '# Blocks'
+
+  interference_count_csv: 'interference-in-int-avg.csv'
+  interference_duration_csv: 'interference-duration-int-avg.csv'
+  tv_environment_csv: 'tv-environment.csv'
+  tv_population_csv: 'tv-population.csv'
+
+  # # Journal scenario1
+  # emergence:
+  #   alpha_T: 0.50
+  #   alpha_S: 0.50
+
+  # flexibility:
+  #   alpha_R: 0.5
+  #   alpha_A: 0.5
+
+  #   hz: # [5000] second periods
+  #     - 0.00004
+
+  #   BC_amp:
+  #     - 0
+  #     - 0.05
+  #     - 0.1
+  #     - 0.15
+  #     - 0.20
+  #     - 0.25
+  #     - 0.30
+  #     - 0.35
+  #     - 0.40
+
+  # robustness:
+  #   alpha_SAA: 0.1
+  #   alpha_PD: 0.9
+  #   gaussian_ticks_mean_range: [0.0, 0.0]
+  #   gaussian_ticks_stddev_range: [0.0, 0.03]
+  #   gaussian_ticks_src: stddev
+
+  #   sensors:
+  #     light:
+  #       model: gaussian
+  #       mean_range: [0.0, 0.0]
+  #       stddev_range: [0.0, 0.03]
+  #     proximity:
+  #       model: gaussian
+  #       mean_range: [0.0, 0.0]
+  #       stddev_range: [0.0, 0.03]
+  #     ground:
+  #       model: gaussian
+  #       mean_range: [0.0, 0.0]
+  #       stddev_range: [0.0, 0.03]
+  #     steering:
+  #       model: gaussian
+  #       mean_range: [0.0, 0.0]
+  #       stddev_range: [0.0, 0.03]
+  #     position:
+  #       model: gaussian
+  #       mean_range: [0.0, 0.0]
+  #       stddev_range: [0.0, 0.03]
+
+  #   actuators:
+  #     steering:
+  #       model: gaussian
+  #       # Factor of 1.0 = normal operation, so inject noise around that setpoint
+  #       mean_range: [1.0, 1.0]
+  #       stddev_range: [0.0, 0.03]
+
+  # Journal scenario2
+  # emergence:
+  #   alpha_T: 0.75
+  #   alpha_S: 0.25
 
   flexibility:
-    hz:
-      - 0
-      - 8000
-      - 16000
-      - 32000
-    BM_amp:
-      - 10
-      - 100
-      - 200
-      - 400
-      - 800
-    BC_amp:
+  #   alpha_R: 0.5
+  #   alpha_A: 0.5
+
+    hz: # [10,000] second periods
+      - 0.00002
+
+    M_amp:
       - 0
       - 0.05
       - 0.1
+      - 0.15
       - 0.2
+      - 0.25
+      - 0.3
+      - 0.35
       - 0.4
 
   robustness:
+    # alpha_SAA: 0.6
+    # alpha_PD: 0.4
+    gaussian_ticks_mean_range: [0.0, 0.0]
+    gaussian_ticks_stddev_range: [0.0, 0.1]
+    gaussian_ticks_src: stddev
+
     sensors:
       light:
-        model: uniform
-        range: [0.0, 0.10]
+        model: gaussian
+        mean_range: [0.0, 0.0]
+        stddev_range: [0.0, 0.1]
       proximity:
-        model: uniform
-        range: [0.0, 0.10]
+        model: gaussian
+        mean_range: [0.0, 0.0]
+        stddev_range: [0.0, 0.1]
       ground:
-        model: uniform
-        range: [0.0, 0.10]
+        model: gaussian
+        mean_range: [0.0, 0.0]
+        stddev_range: [0.0, 0.1]
       steering:
-        model: uniform
-        range: [0.0, 0.10]
+        model: gaussian
+        mean_range: [0.0, 0.0]
+        stddev_range: [0.0, 0.1]
       position:
-        model: uniform
-        range: [0.0, 0.10]
+        model: gaussian
+        mean_range: [0.0, 0.0]
+        stddev_range: [0.0, 0.1]
+
+    actuators:
+      steering:
+        model: gaussian
+        # Factor of 1.0 = normal operation, so inject noise around that setpoint
+        mean_range: [1.0, 1.0]
+        stddev_range: [0.0, 0.1]
