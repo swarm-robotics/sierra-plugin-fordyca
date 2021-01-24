@@ -30,7 +30,6 @@ import pandas as pd
 # Project packages
 import core.models.interface
 import core.utils
-import core.variables.time_setup as ts
 from core.experiment_spec import ExperimentSpec
 import projects.fordyca.models.representation as rep
 import core.variables.batch_criteria as bc
@@ -188,13 +187,15 @@ class IntraExp_BlockCollectionRate_NRobots():
     def calc_kernel_args(criteria:  bc.IConcreteBatchCriteria,
                          exp_num: int,
                          cmdopts: dict,
-                         main_config: dict):
+                         main_config: dict,
+                         config: dict):
         block_manip_df = core.utils.pd_csv_read(os.path.join(cmdopts['exp_avgd_root'],
                                                              'block-manipulation.csv'))
 
-        # Calculate acquisition rate kernel args
-        kargs = IntraExpAcqRate.calc_kernel_args(criteria, exp_num, cmdopts, main_config)
-        alpha_bN = IntraExpAcqRate.kernel(**kargs)
+        # Calculate acquisition rate
+        alpha_bN = IntraExp_BlockAcqRate_NRobots(main_config, config).run(criteria,
+                                                                          exp_num,
+                                                                          cmdopts)[0]
 
         # FIXME: In the future, this will be another model, rather than being read from experimental
         # data.
@@ -230,7 +231,7 @@ class IntraExp_BlockCollectionRate_NRobots():
 
         # We calculate 1 data point for each interval
         res_df = pd.DataFrame(columns=['model'], index=rate_df.index)
-        kargs = self.calc_kernel_args(criteria, exp_num, cmdopts, self.main_config)
+        kargs = self.calc_kernel_args(criteria, exp_num, cmdopts, self.main_config, self.config)
         res_df['model'] = self.kernel(**kargs)
 
         # All done!

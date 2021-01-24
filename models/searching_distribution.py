@@ -31,7 +31,7 @@ import core.models.interface
 import core.utils
 from core.experiment_spec import ExperimentSpec
 import core.variables.batch_criteria as bc
-from core.vector import Vector2D
+from core.vector import Vector3D
 
 from projects.fordyca.models.density import ExplorationDensity
 from projects.fordyca.models.model_error import Model2DError
@@ -137,9 +137,9 @@ class IntraExpSearchingDistribution():
 
         for i in range(0, len(res_df.index)):
             for j in range(0, len(res_df.columns)):
-                val = density.for_region(Vector2D(i * resolution,
+                val = density.for_region(Vector3D(i * resolution,
                                                   j * resolution),
-                                         Vector2D((i + 1) * resolution,
+                                         Vector3D((i + 1) * resolution,
                                                   (j + 1) * resolution))
 
                 res_df.iloc[i, j] += val

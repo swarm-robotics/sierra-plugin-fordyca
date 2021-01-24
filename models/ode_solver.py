@@ -65,7 +65,7 @@ class CRWSolver():
         return z
 
     @staticmethod
-    def kernel(z: tp.Dict[str, float], t: np.array, self, params: tp.Dict[str, float]):
+    def kernel(z: np.array, t: np.array, self, params: tp.Dict[str, float]):
         N = params['N']
         N_s = z[0]
         N_h = z[1]

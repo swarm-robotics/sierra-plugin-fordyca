@@ -27,10 +27,10 @@ import pickle
 from core.utils import ArenaExtent as ArenaExtent
 from core.xml_luigi import XMLLuigi
 from core.generators.scenario_generator import ARGoSScenarioGenerator
-from projects.fordyca.variables import block_distribution, nest_pose, arena, block_quantity
+from projects.fordyca.variables import block_distribution, arena, block_quantity, time_setup
 
 
-class CommonScenarioGenerator(ARGoSScenarioGenerator):
+class ForagingScenarioGenerator(ARGoSScenarioGenerator):
     def __init__(self, *args, **kwargs) -> None:
         ARGoSScenarioGenerator.__init__(self, *args, **kwargs)
 
@@ -53,7 +53,7 @@ class CommonScenarioGenerator(ARGoSScenarioGenerator):
 
     @staticmethod
     def generate_block_dist(exp_def: XMLLuigi,
-                            block_dist: block_distribution.BaseDistribution):
+                            block_dist: block_distribution.BaseDistribution) -> None:
         """
         Generate XML changes for the specified block distribution.
 
@@ -67,7 +67,7 @@ class CommonScenarioGenerator(ARGoSScenarioGenerator):
             for a in rms[0]:
                 exp_def.tag_remove(a[0], a[1])
 
-    def generate_block_count(self, exp_def: XMLLuigi):
+    def generate_block_count(self, exp_def: XMLLuigi) -> None:
         """
         Generates XML changes for # blocks in the simulation. If specified on the cmdline, that
         quantity is used (split evenly between ramp and cube blocks).
@@ -98,8 +98,22 @@ class CommonScenarioGenerator(ARGoSScenarioGenerator):
 
         chgs.pickle(self.spec.exp_def_fpath)
 
+    def generate_time(self, exp_def: XMLLuigi):
+        """
+        Generates XML changes for setting up metric collection in FORDYCA.
 
-class SSGenerator(CommonScenarioGenerator):
+        Writes generated changes to the simulation definition pickle file.
+        """
+        tsetup = time_setup.factory(self.cmdopts['time_setup'])()
+
+        chgs = tsetup.gen_attr_changelist()[0]
+        for chg in chgs:
+            exp_def.attr_change(chg.path, chg.attr, chg.value)
+
+        chgs.pickle(self.spec.exp_def_fpath)
+
+
+class SSGenerator(ForagingScenarioGenerator):
     """
     Generates XML changes for single source foraging.
 
@@ -110,10 +124,13 @@ class SSGenerator(CommonScenarioGenerator):
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        CommonScenarioGenerator.__init__(self, *args, **kwargs)
+        ForagingScenarioGenerator.__init__(self, *args, **kwargs)
 
     def generate(self):
         exp_def = super().generate()
+
+        # Generate time definitions for FORDYCA
+        self.generate_time(exp_def)
 
         # Generate physics engine definitions
         self.generate_physics(exp_def,
@@ -146,7 +163,7 @@ class SSGenerator(CommonScenarioGenerator):
         return exp_def
 
 
-class DSGenerator(CommonScenarioGenerator):
+class DSGenerator(ForagingScenarioGenerator):
     """
     Generates XML changes for dual source foraging.
 
@@ -158,10 +175,13 @@ class DSGenerator(CommonScenarioGenerator):
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        CommonScenarioGenerator.__init__(self, *args, **kwargs)
+        ForagingScenarioGenerator.__init__(self, *args, **kwargs)
 
     def generate(self):
         exp_def = super().generate()
+
+        # Generate time definitions for FORDYCA
+        self.generate_time(exp_def)
 
         # Generate physics engine definitions
         self.generate_physics(exp_def,
@@ -194,7 +214,7 @@ class DSGenerator(CommonScenarioGenerator):
         return exp_def
 
 
-class QSGenerator(CommonScenarioGenerator):
+class QSGenerator(ForagingScenarioGenerator):
     """
     Generates XML changes for quad source foraging.
 
@@ -206,10 +226,13 @@ class QSGenerator(CommonScenarioGenerator):
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        CommonScenarioGenerator.__init__(self, *args, **kwargs)
+        ForagingScenarioGenerator.__init__(self, *args, **kwargs)
 
     def generate(self):
         exp_def = super().generate()
+
+        # Generate time definitions for FORDYCA
+        self.generate_time(exp_def)
 
         # Generate physics engine definitions
         self.generate_physics(exp_def,
@@ -241,7 +264,7 @@ class QSGenerator(CommonScenarioGenerator):
         return exp_def
 
 
-class RNGenerator(CommonScenarioGenerator):
+class RNGenerator(ForagingScenarioGenerator):
     """
     Generates XML changes for random foraging.
 
@@ -253,10 +276,13 @@ class RNGenerator(CommonScenarioGenerator):
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        CommonScenarioGenerator.__init__(self, *args, **kwargs)
+        ForagingScenarioGenerator.__init__(self, *args, **kwargs)
 
     def generate(self):
         exp_def = super().generate()
+
+        # Generate time definitions for FORDYCA
+        self.generate_time(exp_def)
 
         # Generate physics engine definitions
         self.generate_physics(exp_def,
@@ -286,7 +312,7 @@ class RNGenerator(CommonScenarioGenerator):
         return exp_def
 
 
-class PLGenerator(CommonScenarioGenerator):
+class PLGenerator(ForagingScenarioGenerator):
     """
     Generates XML changes for powerlaw source foraging.
 
@@ -298,10 +324,13 @@ class PLGenerator(CommonScenarioGenerator):
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        CommonScenarioGenerator.__init__(self, *args, **kwargs)
+        ForagingScenarioGenerator.__init__(self, *args, **kwargs)
 
     def generate(self):
         exp_def = super().generate()
+
+        # Generate time definitions for FORDYCA
+        self.generate_time(exp_def)
 
         # Generate physics engine definitions
         self.generate_physics(exp_def,

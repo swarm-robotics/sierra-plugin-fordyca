@@ -30,7 +30,6 @@ import pandas as pd
 # Project packages
 import core.models.interface
 import core.utils
-import core.variables.time_setup as ts
 import core.variables.batch_criteria as bc
 from core.vector import Vector3D
 from core.perf_measures.scalability import ParallelFractionUnivar

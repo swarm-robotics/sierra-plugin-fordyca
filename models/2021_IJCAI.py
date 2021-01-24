@@ -126,7 +126,7 @@ class IntraExp_ODE_1Robot():
 
         # T,n_datapoints are directly from simulation inputs
         spec = ExperimentSpec(criteria, exp_num, cmdopts)
-        T_in_secs = ts.TimeSetup.extract_explen(XMLAttrChangeSet.unpickle(spec.exp_def_fpath))
+        T_in_secs = ts.ARGoSTimeSetup.extract_explen(XMLAttrChangeSet.unpickle(spec.exp_def_fpath))
         T = T_in_secs * ts.kTICKS_PER_SECOND
 
         n_datapoints = len(fsm_counts_df.index)
@@ -236,7 +236,7 @@ class IntraExp_ODE_NRobots():
         N = criteria.populations(cmdopts)[exp_num]
 
         spec = ExperimentSpec(criteria, exp_num, cmdopts)
-        T_in_secs = ts.TimeSetup.extract_explen(XMLAttrChangeSet.unpickle(spec.exp_def_fpath))
+        T_in_secs = ts.ARGoSTimeSetup.extract_explen(XMLAttrChangeSet.unpickle(spec.exp_def_fpath))
         T = T_in_secs * ts.kTICKS_PER_SECOND
         n_datapoints = len(fsm_counts_df.index)
 
